@@ -182,9 +182,9 @@ function toast(msg, isError = false) {
   const t = $('#toast');
   t.replaceChildren(fa(isError ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check'), msg);
   t.classList.toggle('error', isError);
-  t.hidden = false;
+  t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.hidden = true), isError ? 5000 : 2500);
+  toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 5000 : 2500);
 }
 
 function readableOn(hex) {
@@ -305,13 +305,13 @@ $('#searchForm').addEventListener('submit', e => { e.preventDefault(); go(q.valu
 // ---------- Google-Apps ----------
 const appsBtn = $('#appsBtn');
 const appsPanel = $('#appsPanel');
-appsPanel.append(...GOOGLE_APPS.map(([name, url, icon]) =>
-  h('a', { class: 'app', href: url, 'data-follow': true }, h('img', { src: icon || favicon(url), alt: '' }), name)));
+appsPanel.append(...GOOGLE_APPS.map(([name, url, icon], i) =>
+  h('a', { class: 'app', href: url, 'data-follow': true, style: `--i:${i}` }, h('img', { src: icon || favicon(url), alt: '' }), name)));
 function setApps(open) {
-  appsPanel.hidden = !open;
+  appsPanel.classList.toggle('open', open);
   appsBtn.setAttribute('aria-expanded', open);
 }
-appsBtn.addEventListener('click', e => { e.stopPropagation(); setApps(appsPanel.hidden); });
+appsBtn.addEventListener('click', e => { e.stopPropagation(); setApps(!appsPanel.classList.contains('open')); });
 document.addEventListener('click', e => { if (!appsPanel.contains(e.target)) setApps(false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') setApps(false); });
 
@@ -341,6 +341,17 @@ function loadFirstIcon(img, candidates, onFail) {
   next();
 }
 const linkTarget = t => ((t.openIn || state.design.openIn) === 'new' ? '_blank' : null);
+
+// Weicher Übergang beim Umbauen der Seite (View Transitions): Kacheln gleiten an ihren neuen Platz,
+// Designwechsel blenden über. Ohne Animationen oder bei "Bewegung reduzieren" sofort.
+function smooth(update) {
+  const reduce = !state.design.animations || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || document.hidden || !document.startViewTransition) return void update();
+  // Abgebrochene Übergänge (z. B. Tab im Hintergrund) sind egal - die Änderung ist trotzdem drin.
+  document.startViewTransition(update).ready.catch(() => {});
+}
+// Eindeutiger Name je Element, damit der Übergang es über das Umbauen hinweg wiedererkennt.
+const vtName = (el, id) => { el.style.viewTransitionName = 'vt-' + String(id).replace(/[^a-zA-Z0-9_-]/g, '_'); return el; };
 
 function paintIcon(ic, t, kind) {
   const color = t.color || '#ffffff';
@@ -394,13 +405,13 @@ function sortable(el, list, i) {
     list.splice(i, 0, moved);
     drag = null;
     save();
-    render();
+    smooth(render);
   });
 }
 
 function renderShortcuts() {
   const tiles = state.shortcuts.map((s, i) => {
-    const el = tileEl(s, 'link');
+    const el = vtName(tileEl(s, 'link'), s.id);
     el.style.setProperty('--i', i); // Reihenfolge beim Einblenden
     if (editing) {
       el.addEventListener('click', e => { e.preventDefault(); openTileEditor('link', state.shortcuts, i); });
@@ -415,7 +426,7 @@ function renderShortcuts() {
 function renderPcs() {
   $('#pcs').replaceChildren(...state.pcs.map((pc, pcIndex) => {
     const buttons = pc.buttons.map((b, i) => {
-      const el = tileEl(b, 'remote');
+      const el = vtName(tileEl(b, 'remote'), b.id);
       el.style.setProperty('--i', state.shortcuts.length + pcIndex * 3 + i);
       if (editing) {
         el.addEventListener('click', () => openTileEditor('remote', pc.buttons, i, pc));
@@ -441,6 +452,7 @@ function renderPcs() {
       buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
+    vtName(card, 'pc-' + pc.id);
     return card;
   }));
   checkHealth();
@@ -456,7 +468,7 @@ function linkRow(s) {
 
 function groupEl(g, index) {
   const rows = g.shortcuts.map((s, i) => {
-    const el = linkRow(s);
+    const el = vtName(linkRow(s), s.id);
     if (editing) {
       el.addEventListener('click', e => { e.preventDefault(); openTileEditor('link', g.shortcuts, i); });
       sortable(el, g.shortcuts, i);
@@ -468,20 +480,25 @@ function groupEl(g, index) {
       h('span', { class: 'ic' }, fa('fa-solid fa-plus')), h('span', { class: 'lbl' }, 'Hinzufügen')));
   }
   const open = editing || !g.collapsed;
-  const el = h('section', { class: 'group' },
+  const el = h('section', { class: open ? 'group' : 'group collapsed' },
     h('div', { class: 'group-head' },
       h('button', {
-        class: 'group-toggle', type: 'button', 'aria-expanded': open, title: open ? 'Einklappen' : 'Ausklappen',
-        onclick: () => { g.collapsed = !g.collapsed; save(); renderGroups(); },
+        class: 'group-toggle', type: 'button', 'aria-expanded': open, title: 'Ein-/Ausklappen',
+        onclick: e => {
+          g.collapsed = !g.collapsed;
+          el.classList.toggle('collapsed', g.collapsed && !editing);
+          e.currentTarget.setAttribute('aria-expanded', !el.classList.contains('collapsed'));
+          save();
+        },
       }, fa('fa-solid fa-chevron-down'), h('span', {}, g.name)),
       editing && h('button', { class: 'iconbtn small', type: 'button', title: 'Gruppe bearbeiten', onclick: () => openGroupEditor(g) },
         fa('fa-solid fa-pen')),
     ),
-    open && h('div', { class: 'group-list' },
-      rows.length ? rows : h('p', { class: 'empty' }, 'Noch leer – ⚙ drücken und „Hinzufügen“ wählen.')),
+    h('div', { class: 'group-body' }, h('div', { class: 'group-list' },
+      rows.length ? rows : h('p', { class: 'empty' }, 'Noch leer – ⚙ drücken und „Hinzufügen“ wählen.'))),
   );
   el.style.setProperty('--i', index);
-  return el;
+  return vtName(el, 'group-' + g.id);
 }
 
 function renderGroups() {
@@ -881,7 +898,7 @@ tf.addEventListener('submit', e => {
     target.push(item);
   }
   save();
-  render();
+  smooth(render);
 });
 
 $('#tileDelete').addEventListener('click', () => {
@@ -890,7 +907,7 @@ $('#tileDelete').addEventListener('click', () => {
   list.splice(index, 1);
   tileDlg.close();
   save();
-  render();
+  smooth(render);
 });
 
 // ---------- PC-Editor ----------
@@ -964,7 +981,7 @@ $('#pcDelete').addEventListener('click', async () => {
 });
 
 // ---------- Bearbeiten, Export, Import ----------
-function setEditing(on) { editing = on; render(); }
+function setEditing(on) { smooth(() => { editing = on; render(); }); }
 $('#editBtn').addEventListener('click', () => setEditing(!editing));
 $('#doneBtn').addEventListener('click', () => setEditing(false));
 $('#addShortcut').addEventListener('click', () => openTileEditor('link', state.shortcuts, -1));
@@ -1007,6 +1024,7 @@ $('#importFile').addEventListener('change', async e => {
 });
 
 // ---------- Start ----------
+document.querySelectorAll('#editbar .btn').forEach((b, n) => b.style.setProperty('--n', n));
 tick();
 setInterval(tick, 1000);
 load().then(() => {
@@ -1167,8 +1185,12 @@ function syncDesignForm() {
 
 function changeDesign(patch) {
   Object.assign(state.design, patch);
-  applyDesign(state.design);
-  if ('openIn' in patch) render(); // Shortcuts übernehmen die neue Öffnen-Einstellung
+  // Design, Größe und Form blenden weich über; Regler (Abdunkeln, Farbe) sofort, sonst ruckelt das Ziehen.
+  const instant = 'bgDim' in patch || 'accent' in patch;
+  (instant ? f => f() : smooth)(() => {
+    applyDesign(state.design);
+    if ('openIn' in patch) render(); // Shortcuts übernehmen die neue Öffnen-Einstellung
+  });
   syncDesignForm();
 }
 
@@ -1251,7 +1273,7 @@ gf.addEventListener('submit', e => {
   if (groupCtx.group) Object.assign(groupCtx.group, { name, side: groupCtx.side });
   else state.groups.push({ id: uid(), name, side: groupCtx.side, collapsed: false, shortcuts: [] });
   save();
-  render();
+  smooth(render);
 });
 $('#groupDelete').addEventListener('click', () => {
   const { group } = groupCtx;
@@ -1260,5 +1282,5 @@ $('#groupDelete').addEventListener('click', () => {
   state.groups.splice(state.groups.indexOf(group), 1);
   groupDlg.close();
   save();
-  render();
+  smooth(render);
 });

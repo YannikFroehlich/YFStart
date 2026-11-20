@@ -371,35 +371,118 @@ input[type=checkbox], input[type=range], input[type=radio] { accent-color: var(-
 }
 
 /* ---------- Animationen ----------
-   Einblenden nur beim ersten Aufbau (body.intro), nicht bei jedem Neuzeichnen. */
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-@keyframes pop { from { opacity: 0; transform: scale(.96); } }
-@keyframes fade { from { opacity: 0; } }
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px); } }
-@keyframes pulse { 50% { transform: scale(.9); opacity: .6; } }
-@keyframes ping { 0% { transform: scale(1); opacity: .7; } 70%, 100% { transform: scale(2.6); opacity: 0; } }
+   Nur transform und opacity bewegen (läuft auf der Grafikkarte, ruckelt nicht).
+   --ease-out: schnell los, weich aus. --ease-spring: leichtes Nachfedern. */
+:root {
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --dur-fast: .16s;
+  --dur: .32s;
+  --dur-slow: .7s;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+@keyframes rise-soft { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.85); } }
+@keyframes pulse { 50% { transform: scale(.92); opacity: .55; } }
+@keyframes ping { 0% { transform: scale(1); opacity: .6; } 80%, 100% { transform: scale(2.8); opacity: 0; } }
 @keyframes drift { to { transform: translate(12vmax, 8vmax) scale(1.15); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes float { 50% { transform: translateY(-3px); } }
 
-body.intro .clock { animation: rise .5s ease both; }
-body.intro .weather { animation: rise .5s .05s ease both; }
-body.intro .search { animation: rise .5s .1s ease both; }
-body.intro .tile, body.intro .pc, body.intro .group { animation: rise .45s calc(.15s + var(--i, 0) * 30ms) ease both; }
-.tile:hover { transform: translateY(-3px); }
-.tile:hover .ic { box-shadow: var(--shadow-lift); }
-.tile:active .ic { transform: scale(.94); }
-.apps-panel:not([hidden]) { animation: pop .18s ease; }
-.suggest:not([hidden]) { animation: fade .12s ease; }
-dialog[open] { animation: pop .2s ease; }
-dialog[open]::backdrop { animation: fade .2s ease; }
-.toast:not([hidden]) { animation: toast-in .25s ease; }
-.w-sun { animation: spin 24s linear infinite; }
-.w-cloud, .w-rain, .w-snow, .w-storm, .w-moon { animation: float 3.2s ease-in-out infinite; }
+/* Beim Öffnen: Uhr, Wetter, Suche, dann Kacheln und Karten nacheinander */
+body.intro .clock { animation: rise var(--dur-slow) var(--ease-out) both; }
+body.intro .weather { animation: rise var(--dur-slow) .06s var(--ease-out) both; }
+body.intro .search { animation: rise var(--dur-slow) .12s var(--ease-out) both; }
+body.intro .tile, body.intro .pc, body.intro .group {
+  animation: rise var(--dur-slow) calc(.18s + min(var(--i, 0), 20) * 35ms) var(--ease-out) both;
+}
 
-html[data-anim="off"] *, html[data-anim="off"] *::before, html[data-anim="off"] *::after {
+/* Kacheln und Listen: anheben mit leichtem Federn, Druck gibt sichtbar nach */
+.tile { transition: transform .45s var(--ease-spring), background-color var(--dur) var(--ease-out), border-color var(--dur); }
+.tile .ic { transition: transform .45s var(--ease-spring), box-shadow var(--dur) var(--ease-out); }
+.tile:hover { transform: translateY(-4px); }
+.tile:hover .ic { transform: scale(1.06); box-shadow: var(--shadow-lift); }
+.tile:active .ic { transform: scale(.93); transition-duration: var(--dur-fast); }
+.link-row { transition: transform var(--dur) var(--ease-spring), background-color var(--dur-fast); }
+.link-row .ic { transition: transform var(--dur) var(--ease-spring); }
+.link-row:hover .ic { transform: scale(1.08); }
+.link-row:active { transform: translateX(3px) scale(.98); }
+.btn, .iconbtn, .seg button, .theme-card, .icon-grid button, .toplink, .app, .weather {
+  transition: transform var(--dur) var(--ease-spring), background-color var(--dur-fast), border-color var(--dur-fast),
+    color var(--dur-fast), box-shadow var(--dur) var(--ease-out), filter var(--dur-fast);
+}
+.btn:active, .iconbtn:active, .seg button:active { transform: scale(.95); transition-duration: var(--dur-fast); }
+.app img { transition: transform .45s var(--ease-spring); }
+.app:hover img { transform: scale(1.12) translateY(-2px); }
+#editBtn i { transition: transform .6s var(--ease-spring); }
+
+/* Suchfeld: weicher Fokus-Schein */
+#q { transition: box-shadow var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), border-radius var(--dur-fast); }
+.suggest:not([hidden]) { animation: rise-soft var(--dur) var(--ease-out); }
+.suggest li { transition: background-color var(--dur-fast); }
+
+/* Google-Apps: auf- und zuklappen, Symbole kommen nacheinander */
+.apps-panel {
+  opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.95); pointer-events: none;
+  transition: opacity .2s var(--ease-out), transform .25s var(--ease-out), visibility 0s .25s;
+}
+.apps-panel.open {
+  opacity: 1; visibility: visible; transform: none; pointer-events: auto;
+  transition: opacity .2s var(--ease-out), transform .4s var(--ease-spring), visibility 0s;
+}
+.apps-panel.open .app { animation: pop-in .4s calc(var(--i, 0) * 18ms) var(--ease-spring) both; }
+
+/* Meldungen gleiten rein und wieder raus */
+.toast {
+  opacity: 0; transform: translate(-50%, 18px) scale(.96); pointer-events: none;
+  transition: opacity var(--dur) var(--ease-out), transform .45s var(--ease-spring);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+
+/* Dialoge: öffnen und schließen weich (auch der abgedunkelte Hintergrund) */
+dialog {
+  opacity: 0; transform: translateY(12px) scale(.97);
+  transition: opacity var(--dur) var(--ease-out), transform .4s var(--ease-out),
+    overlay var(--dur) allow-discrete, display var(--dur) allow-discrete;
+}
+dialog[open] { opacity: 1; transform: none; }
+@starting-style { dialog[open] { opacity: 0; transform: translateY(12px) scale(.97); } }
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0); backdrop-filter: blur(0);
+  transition: background-color var(--dur) var(--ease-out), backdrop-filter var(--dur) var(--ease-out),
+    overlay var(--dur) allow-discrete, display var(--dur) allow-discrete;
+}
+dialog[open]::backdrop { background: rgba(0, 0, 0, .5); backdrop-filter: blur(4px); }
+@starting-style { dialog[open]::backdrop { background: rgba(0, 0, 0, 0); backdrop-filter: blur(0); } }
+
+/* Bearbeiten-Modus: Leiste gleitet ein, neue Kacheln springen auf */
+.editbar:not([hidden]) { animation: rise-soft .4s var(--ease-out); }
+.editbar:not([hidden]) .btn { animation: pop-in .4s calc(var(--n, 0) * 30ms) var(--ease-spring) both; }
+body.editing .tile.add, body.editing .link-row.add { animation: pop-in .45s var(--ease-spring) both; }
+
+/* Gruppen auf- und zuklappen: Höhe weich über grid-template-rows */
+.group-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .45s var(--ease-out); }
+.group-body > .group-list { min-height: 0; overflow: hidden; transition: opacity var(--dur) var(--ease-out); }
+.group.collapsed .group-body { grid-template-rows: 0fr; }
+.group.collapsed .group-body > .group-list { opacity: 0; }
+.group-toggle i { transition: transform .45s var(--ease-spring); }
+
+/* Kleinkram */
+.tile.busy .ic { animation: pulse 1s var(--ease-in-out) infinite; }
+.dot.on::after { animation: ping 2.6s var(--ease-out) infinite; }
+.w-sun { animation: spin 30s linear infinite; }
+.w-cloud, .w-rain, .w-snow, .w-storm, .w-moon { animation: float 4s var(--ease-in-out) infinite; }
+
+/* Übergänge beim Umbauen (Design wechseln, Kacheln verschieben): siehe smooth() in newtab.js */
+::view-transition-group(*) { animation-duration: .45s; animation-timing-function: var(--ease-out); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .4s; }
+
+html[data-anim="off"] *, html[data-anim="off"] *::before, html[data-anim="off"] *::after,
+html[data-anim="off"] ::backdrop {
   animation: none !important; transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after, ::backdrop { animation: none !important; transition: none !important; }
 }
