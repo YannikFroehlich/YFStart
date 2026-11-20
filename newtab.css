@@ -70,6 +70,13 @@ button, input, select { font: inherit; color: inherit; }
 main { max-width: 900px; margin: 0 auto; padding: 4vh 16px 60px; }
 .clock { text-align: center; font-size: 56px; font-weight: 300; letter-spacing: 1px; }
 .clock small { display: block; font-size: 15px; color: var(--muted); letter-spacing: 0; }
+.weather {
+  display: flex; align-items: center; gap: 8px; width: fit-content; max-width: 100%; margin: 10px auto 0;
+  padding: 5px 14px; border-radius: 20px; text-decoration: none; color: var(--muted); font-size: 14px;
+}
+.weather:hover { background: var(--surface-2); color: var(--text); }
+.weather .w-icon { font-size: 22px; line-height: 1; }
+.weather .w-temp { font-size: 18px; font-weight: 500; color: var(--text); }
 
 .search { position: relative; max-width: 620px; margin: 26px auto 34px; }
 .search-icon { position: absolute; left: 16px; top: 15px; color: var(--muted); }

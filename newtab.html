@@ -24,6 +24,7 @@
 
 <main>
   <div id="clock" class="clock"></div>
+  <a id="weather" class="weather" hidden></a>
 
   <form id="searchForm" class="search" autocomplete="off" role="search">
     <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
@@ -35,6 +36,7 @@
   <div id="editbar" class="editbar" hidden>
     <button id="addShortcut" class="btn">+ Shortcut</button>
     <button id="addPc" class="btn">+ PC (YFRemote)</button>
+    <button id="weatherBtn" class="btn">Wetter</button>
     <button id="exportBtn" class="btn">Exportieren</button>
     <button id="importBtn" class="btn">Importieren</button>
     <input id="importFile" type="file" accept="application/json" hidden>
@@ -99,6 +101,24 @@
     <p id="pairStatus" class="muted"></p>
     <div class="dlg-actions">
       <button type="button" id="pcDelete" class="btn danger">Entfernen</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Wetter ein-/ausschalten und Ort wählen -->
+<dialog id="weatherDlg">
+  <form method="dialog" id="weatherForm">
+    <h2>Wetter</h2>
+    <label class="check"><input type="checkbox" name="enabled"> Wetter unter der Uhr anzeigen</label>
+    <div class="pair">
+      <label>Ort <input name="place" placeholder="z. B. Münster" maxlength="80"></label>
+      <button type="button" id="placeSearch" class="btn">Suchen</button>
+    </div>
+    <p id="placeStatus" class="muted"></p>
+    <div class="dlg-actions">
       <span class="spacer"></span>
       <button type="button" class="btn" data-close>Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>

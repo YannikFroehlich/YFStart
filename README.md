@@ -3,6 +3,7 @@
 Eigene Seite für „Neuer Tab“ in Chrome:
 
 - Google-Suche mit Vorschlägen, Gmail, Bilder und alle Google-Apps
+- Wetter für einen Ort unter der Uhr, ein- und ausschaltbar (⚙ → **Wetter**)
 - Shortcuts mit eigenem Text, Icon und Farben, sortierbar per Ziehen
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
   Sperren, Ausschalten, Medien, Lautstärke, Tastenkombinationen und mehr per Klick

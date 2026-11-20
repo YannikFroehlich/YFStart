@@ -17,6 +17,8 @@ löscht Chrome sie.
 - **Google-Suchvorschläge:** Text, der in das Suchfeld getippt wird, geht direkt an
   `suggestqueries.google.com`, um Vorschläge anzuzeigen. Abgeschickte Suchen öffnen
   `www.google.com`. Dafür gilt die Datenschutzerklärung von Google.
+- **Wetter (nur wenn eingeschaltet):** Der eingegebene Ortsname geht an
+  `geocoding-api.open-meteo.com`, die Koordinaten des Orts an `api.open-meteo.com`.
 - **Symbole:** Für Shortcuts ohne eigenes Icon lädt YFStart das Favicon über
   `www.google.com/s2/favicons` mit der Adresse des Shortcuts. Die Symbole der Google-Apps kommen
   von `ssl.gstatic.com`.

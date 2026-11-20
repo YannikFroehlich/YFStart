@@ -99,13 +99,14 @@ const ACTIONS = {
 };
 
 // ---------- Zustand ----------
-const state = { shortcuts: [], pcs: [] };
+const state = { shortcuts: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null } };
 let editing = false;
 const $ = sel => document.querySelector(sel);
 const uid = () => crypto.randomUUID();
 
 async function load() {
-  const d = await storage.get(['shortcuts', 'pcs']);
+  const d = await storage.get(['shortcuts', 'pcs', 'weather']);
+  if (d.weather) state.weather = d.weather;
   state.shortcuts = Array.isArray(d.shortcuts) ? d.shortcuts : structuredClone(DEFAULT_SHORTCUTS);
   state.pcs = Array.isArray(d.pcs) ? d.pcs : [];
   // Ältere Einträge mit http://…:5443 reparieren (siehe normalizePcUrl).
@@ -113,7 +114,7 @@ async function load() {
 }
 
 async function save() {
-  await storage.set({ shortcuts: state.shortcuts, pcs: state.pcs });
+  await storage.set({ shortcuts: state.shortcuts, pcs: state.pcs, weather: state.weather });
 }
 
 // ---------- Hilfen ----------
@@ -685,7 +686,7 @@ $('#addPc').addEventListener('click', () => openPcEditor(-1));
 
 $('#exportBtn').addEventListener('click', () => {
   // Ohne Kopplungs-Tokens: wer die Datei hat, soll die PCs nicht steuern können.
-  const data = { shortcuts: state.shortcuts, pcs: state.pcs.map(({ token, ...pc }) => pc) };
+  const data = { shortcuts: state.shortcuts, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather };
   const a = h('a', {
     href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })),
     download: 'yfstart-backup.json',
@@ -705,8 +706,10 @@ $('#importFile').addEventListener('change', async e => {
     if (!confirm('Aktuelle Shortcuts und PCs durch die Datei ersetzen?')) return;
     state.shortcuts = data.shortcuts;
     state.pcs = data.pcs.map(pc => ({ ...pc, token: null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [] }));
+    if (data.weather) state.weather = data.weather;
     await save();
     render();
+    renderWeather();
     toast('Importiert.');
   } catch {
     toast('Datei ist kein gültiges YFStart-Backup.', true);
@@ -719,7 +722,96 @@ setInterval(tick, 1000);
 load().then(() => {
   render();
   setInterval(checkHealth, 30_000);
+  renderWeather();
+  setInterval(renderWeather, 15 * 60_000);
   checkForUpdate();
+});
+
+// ---------- Wetter ----------
+// Open-Meteo: kostenlos, ohne API-Schlüssel, erlaubt Abrufe von jeder Seite (CORS).
+// Wetterdaten höchstens alle 30 Minuten neu holen, nicht bei jedem neuen Tab.
+const WEATHER_CODES = [ // WMO-Code -> Symbol, Text
+  [[0], '☀️', 'Klar'], [[1], '🌤️', 'Überwiegend klar'], [[2], '⛅', 'Teilweise bewölkt'], [[3], '☁️', 'Bewölkt'],
+  [[45, 48], '🌫️', 'Nebel'], [[51, 53, 55, 56, 57], '🌦️', 'Nieselregen'], [[61, 63, 65, 66, 67], '🌧️', 'Regen'],
+  [[71, 73, 75, 77], '🌨️', 'Schnee'], [[80, 81, 82], '🌦️', 'Regenschauer'], [[85, 86], '🌨️', 'Schneeschauer'],
+  [[95, 96, 99], '⛈️', 'Gewitter'],
+];
+
+async function renderWeather() {
+  const el = $('#weather');
+  const w = state.weather;
+  if (!w.enabled || w.lat == null) return void (el.hidden = true);
+  let { weatherCache: cache } = await storage.get(['weatherCache']);
+  const fresh = cache && cache.lat === w.lat && cache.lon === w.lon;
+  if (!fresh || Date.now() - cache.at > 30 * 60_000) {
+    try {
+      const res = await fetch('https://api.open-meteo.com/v1/forecast?timezone=auto&forecast_days=1'
+        + `&latitude=${w.lat}&longitude=${w.lon}&current=temperature_2m,weather_code,is_day`
+        + '&daily=temperature_2m_max,temperature_2m_min');
+      if (!res.ok) throw new Error();
+      cache = { at: Date.now(), lat: w.lat, lon: w.lon, data: await res.json() };
+      await storage.set({ weatherCache: cache });
+    } catch {
+      if (!fresh) return void (el.hidden = true); // offline: sonst den letzten Stand zeigen
+    }
+  }
+  const { current, daily } = cache.data;
+  let [, icon, text] = WEATHER_CODES.find(([codes]) => codes.includes(current.weather_code)) ?? [, '🌡️', ''];
+  if (!current.is_day && current.weather_code <= 1) icon = '🌙';
+  const max = Math.round(daily.temperature_2m_max[0]), min = Math.round(daily.temperature_2m_min[0]);
+  el.href = 'https://www.google.com/search?q=' + encodeURIComponent('Wetter ' + w.name);
+  el.title = `Aktualisiert ${new Date(cache.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+  el.replaceChildren(
+    h('span', { class: 'w-icon' }, icon),
+    h('span', { class: 'w-temp' }, `${Math.round(current.temperature_2m)}°`),
+    h('span', {}, [w.name, text, `↑ ${max}°  ↓ ${min}°`].filter(Boolean).join(' · ')),
+  );
+  el.hidden = false;
+}
+
+const weatherDlg = $('#weatherDlg');
+const wf = $('#weatherForm');
+let placeDraft = null; // { name, lat, lon } aus der Ortssuche
+
+async function findPlace(query) {
+  const res = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=de&name='
+    + encodeURIComponent(query));
+  const place = (await res.json()).results?.[0];
+  if (!place) throw new Error(`Kein Ort „${query}“ gefunden.`);
+  $('#placeStatus').textContent = 'Gefunden: ' + [place.name, place.admin1, place.country].filter(Boolean).join(', ');
+  return { name: place.name, lat: place.latitude, lon: place.longitude };
+}
+
+$('#weatherBtn').addEventListener('click', () => {
+  placeDraft = null;
+  wf.enabled.checked = state.weather.enabled;
+  wf.place.value = state.weather.name;
+  $('#placeStatus').textContent = state.weather.name ? '' : 'Ort eingeben und „Suchen“ klicken.';
+  weatherDlg.showModal();
+});
+
+$('#placeSearch').addEventListener('click', async () => {
+  try {
+    placeDraft = await findPlace(wf.place.value.trim());
+    wf.place.value = placeDraft.name;
+  } catch (err) {
+    $('#placeStatus').textContent = err.message.startsWith('Kein Ort') ? err.message : 'Ortssuche nicht erreichbar.';
+  }
+});
+
+wf.addEventListener('submit', async e => {
+  if (e.submitter?.value !== 'ok') return;
+  e.preventDefault(); // erst schließen, wenn der Ort feststeht
+  const query = wf.place.value.trim();
+  let place = [placeDraft, state.weather].find(p => p?.lat != null && p.name === query) ?? null;
+  if (!place && query) {
+    try { place = await findPlace(query); } catch (err) { return void ($('#placeStatus').textContent = err.message); }
+  }
+  if (wf.enabled.checked && !place) return void ($('#placeStatus').textContent = 'Bitte einen Ort eingeben.');
+  state.weather = { enabled: wf.enabled.checked, name: place?.name ?? '', lat: place?.lat ?? null, lon: place?.lon ?? null };
+  weatherDlg.close();
+  await save();
+  renderWeather();
 });
 
 // ---------- Update-Hinweis ----------
