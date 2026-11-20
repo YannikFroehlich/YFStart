@@ -1,14 +1,20 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Neuer Tab</title>
+<link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
 <link rel="stylesheet" href="newtab.css">
 </head>
-<body>
+<body class="intro">
+<div class="bg" aria-hidden="true">
+  <div class="bg-image"></div>
+  <div class="bg-fx"><i></i><i></i><i></i></div>
+</div>
+
 <header class="topbar">
-  <div id="update" class="update" hidden></div>
+  <div id="update" class="update glass" hidden></div>
   <a href="https://mail.google.com/mail/" class="toplink">Gmail</a>
   <a href="https://www.google.com/imghp" class="toplink">Bilder</a>
   <div class="apps-wrap">
@@ -17,9 +23,7 @@
     </button>
     <div id="appsPanel" class="apps-panel" hidden></div>
   </div>
-  <button id="editBtn" class="iconbtn" title="Bearbeiten">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L14.9 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.4 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.9h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM12.9 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
-  </button>
+  <button id="editBtn" class="iconbtn" title="Bearbeiten"><i class="fa-solid fa-gear"></i></button>
 </header>
 
 <main>
@@ -27,20 +31,21 @@
   <a id="weather" class="weather" hidden></a>
 
   <form id="searchForm" class="search" autocomplete="off" role="search">
-    <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+    <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
     <input id="q" name="q" type="search" placeholder="Mit Google suchen oder URL eingeben" aria-label="Suche" autofocus
            role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false">
     <ul id="suggest" class="suggest" role="listbox" hidden></ul>
   </form>
 
   <div id="editbar" class="editbar" hidden>
-    <button id="addShortcut" class="btn">+ Shortcut</button>
-    <button id="addPc" class="btn">+ PC (YFRemote)</button>
-    <button id="weatherBtn" class="btn">Wetter</button>
-    <button id="exportBtn" class="btn">Exportieren</button>
-    <button id="importBtn" class="btn">Importieren</button>
+    <button id="addShortcut" class="btn"><i class="fa-solid fa-plus"></i> Shortcut</button>
+    <button id="addPc" class="btn"><i class="fa-solid fa-desktop"></i> PC (YFRemote)</button>
+    <button id="designBtn" class="btn"><i class="fa-solid fa-palette"></i> Design</button>
+    <button id="weatherBtn" class="btn"><i class="fa-solid fa-cloud-sun"></i> Wetter</button>
+    <button id="exportBtn" class="btn"><i class="fa-solid fa-file-export"></i> Exportieren</button>
+    <button id="importBtn" class="btn"><i class="fa-solid fa-file-import"></i> Importieren</button>
     <input id="importFile" type="file" accept="application/json" hidden>
-    <button id="doneBtn" class="btn primary">Fertig</button>
+    <button id="doneBtn" class="btn primary"><i class="fa-solid fa-check"></i> Fertig</button>
   </div>
 
   <section id="shortcuts" class="grid" aria-label="Shortcuts"></section>
@@ -66,21 +71,45 @@
         <label data-kind="remote" id="paramRow"><span id="paramLabel">Parameter</span> <input name="param"></label>
         <label data-kind="remote" class="check"><input type="checkbox" name="confirm"> Vor dem Ausführen nachfragen</label>
 
-        <label>Icon <input name="icon" placeholder="Emoji, Text oder Bild-URL – leer = automatisch"></label>
-        <div class="row">
-          <button type="button" id="iconUpload" class="btn small">Bild hochladen…</button>
-          <input type="file" id="iconFile" accept="image/*" hidden>
-          <button type="button" id="iconClear" class="btn small">Icon leeren</button>
+        <h3>Icon</h3>
+        <div class="seg" id="iconModes" role="group" aria-label="Art des Icons">
+          <button type="button" data-mode="auto"><i class="fa-solid fa-wand-magic-sparkles"></i> <span id="autoModeLabel">Website</span></button>
+          <button type="button" data-mode="fa"><i class="fa-brands fa-font-awesome"></i> Font Awesome</button>
+          <button type="button" data-mode="text"><i class="fa-regular fa-face-smile"></i> Emoji/Text</button>
+          <button type="button" data-mode="image"><i class="fa-regular fa-image"></i> Bild</button>
         </div>
+
+        <div class="icon-pane" data-pane="auto">
+          <p class="icon-hint" id="autoHint"></p>
+        </div>
+        <div class="icon-pane" data-pane="fa">
+          <p class="icon-hint">Vorschläge</p>
+          <div class="icon-grid suggest-row" id="faSuggest"></div>
+          <input id="faSearch" type="search" placeholder="Icon suchen (englisch, z. B. mail, music, home)" style="width:100%;margin-top:8px">
+          <div class="icon-grid" id="faGrid"></div>
+        </div>
+        <div class="icon-pane" data-pane="text">
+          <label>Emoji oder Text <input name="iconText" maxlength="4" placeholder="z. B. 🎮 oder YT"></label>
+        </div>
+        <div class="icon-pane" data-pane="image">
+          <label>Bild-URL <input name="iconUrl" placeholder="https://…/logo.png"></label>
+          <div class="row">
+            <button type="button" id="iconUpload" class="btn small"><i class="fa-solid fa-upload"></i> Bild hochladen…</button>
+            <input type="file" id="iconFile" accept="image/*" hidden>
+            <label class="check"><input type="checkbox" name="imageFill"> Kachel ausfüllen</label>
+          </div>
+        </div>
+
+        <h3>Farben</h3>
         <div class="row">
           <label class="color">Hintergrund <input type="color" name="color"></label>
-          <label class="color">Icon-/Textfarbe <input type="color" name="fg"></label>
+          <label class="color">Icon/Text <input type="color" name="fg"></label>
           <label class="check"><input type="checkbox" name="autoFg"> automatisch</label>
         </div>
       </div>
     </div>
     <div class="dlg-actions">
-      <button type="button" id="tileDelete" class="btn danger">Löschen</button>
+      <button type="button" id="tileDelete" class="btn danger"><i class="fa-solid fa-trash"></i> Löschen</button>
       <span class="spacer"></span>
       <button type="button" class="btn" data-close>Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>
@@ -96,11 +125,11 @@
     <label>Adresse <input name="url" required placeholder="http://192.168.178.20:5050"></label>
     <div class="pair">
       <label>PIN aus dem YFRemote-Tray <input name="pin" inputmode="numeric" maxlength="6" placeholder="123456"></label>
-      <button type="button" id="pairBtn" class="btn">Koppeln</button>
+      <button type="button" id="pairBtn" class="btn"><i class="fa-solid fa-link"></i> Koppeln</button>
     </div>
     <p id="pairStatus" class="muted"></p>
     <div class="dlg-actions">
-      <button type="button" id="pcDelete" class="btn danger">Entfernen</button>
+      <button type="button" id="pcDelete" class="btn danger"><i class="fa-solid fa-trash"></i> Entfernen</button>
       <span class="spacer"></span>
       <button type="button" class="btn" data-close>Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>
@@ -115,12 +144,60 @@
     <label class="check"><input type="checkbox" name="enabled"> Wetter unter der Uhr anzeigen</label>
     <div class="pair">
       <label>Ort <input name="place" placeholder="z. B. Münster" maxlength="80"></label>
-      <button type="button" id="placeSearch" class="btn">Suchen</button>
+      <button type="button" id="placeSearch" class="btn"><i class="fa-solid fa-magnifying-glass"></i> Suchen</button>
     </div>
     <p id="placeStatus" class="muted"></p>
     <div class="dlg-actions">
       <span class="spacer"></span>
       <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Design: Änderungen wirken sofort, Abbrechen nimmt sie zurück -->
+<dialog id="designDlg">
+  <form method="dialog" id="designForm">
+    <h2>Design</h2>
+    <div class="themes" id="themes"></div>
+
+    <h3>Akzentfarbe</h3>
+    <div class="row">
+      <label class="check"><input type="checkbox" name="ownAccent"> Eigene Farbe</label>
+      <input type="color" name="accent">
+    </div>
+
+    <h3>Hintergrundbild</h3>
+    <div class="row">
+      <button type="button" id="bgUpload" class="btn small"><i class="fa-solid fa-upload"></i> Bild hochladen…</button>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+      <button type="button" id="bgClear" class="btn small"><i class="fa-solid fa-xmark"></i> Entfernen</button>
+      <label class="check">Abdunkeln <input type="range" name="bgDim" min="0" max="80" step="5"></label>
+    </div>
+
+    <h3>Kacheln</h3>
+    <div class="seg" id="sizeSeg" role="group" aria-label="Kachelgröße">
+      <button type="button" data-value="s">Klein</button>
+      <button type="button" data-value="m">Mittel</button>
+      <button type="button" data-value="l">Groß</button>
+    </div>
+    <div class="seg" id="shapeSeg" role="group" aria-label="Kachelform">
+      <button type="button" data-value="round"><i class="fa-regular fa-circle"></i> Rund</button>
+      <button type="button" data-value="rounded"><i class="fa-regular fa-square"></i> Abgerundet</button>
+      <button type="button" data-value="square"><i class="fa-solid fa-square"></i> Eckig</button>
+    </div>
+    <div class="seg" id="tilesSeg" role="group" aria-label="Kachelstil">
+      <button type="button" data-value="plain">Schlicht</button>
+      <button type="button" data-value="cards">Karten</button>
+    </div>
+
+    <h3>Bewegung</h3>
+    <label class="check"><input type="checkbox" name="animations"> Animationen</label>
+
+    <div class="dlg-actions">
+      <button type="button" id="designReset" class="btn"><i class="fa-solid fa-rotate-left"></i> Standard</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="designCancel">Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>
     </div>
   </form>

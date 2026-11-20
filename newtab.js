@@ -19,7 +19,7 @@ const storage = hasExt ? chrome.storage.local : {
 
 // ---------- Konstanten ----------
 const gIcon = name => `https://ssl.gstatic.com/images/branding/product/2x/${name}_48dp.png`;
-const favicon = url => `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(url)}`;
+const favicon = url => `https://www.google.com/s2/favicons?sz=128&domain_url=${encodeURIComponent(url)}`;
 
 const GOOGLE_APPS = [
   ['Konto', 'https://myaccount.google.com/'],
@@ -54,19 +54,19 @@ const DEFAULT_SHORTCUTS = [
 // YFRemote-Aktionen: build(param) liefert die WebSocket-Nachricht (siehe RemoteActionHandler im Server).
 const mediaKey = key => () => ({ type: 'key', keys: [key] });
 const ACTIONS = {
-  lock: { name: 'Sperren', icon: '🔒', build: () => ({ type: 'lock' }) },
-  sleep: { name: 'Energie sparen', icon: '🌙', build: () => ({ type: 'sleep' }) },
-  displayOff: { name: 'Bildschirm aus', icon: '🖥️', build: () => ({ type: 'displayOff' }) },
-  shutdown: { name: 'Herunterfahren', icon: '⏻', confirm: true, build: () => ({ type: 'shutdown' }) },
-  restart: { name: 'Neustart', icon: '🔄', confirm: true, build: () => ({ type: 'restart' }) },
-  playPause: { name: 'Play / Pause', icon: '⏯️', build: mediaKey('MEDIA_PLAY_PAUSE') },
-  next: { name: 'Nächster Titel', icon: '⏭️', build: mediaKey('MEDIA_NEXT') },
-  prev: { name: 'Vorheriger Titel', icon: '⏮️', build: mediaKey('MEDIA_PREVIOUS') },
-  mute: { name: 'Stumm an/aus', icon: '🔇', build: mediaKey('VOLUME_MUTE') },
-  volUp: { name: 'Lauter', icon: '🔊', build: mediaKey('VOLUME_UP') },
-  volDown: { name: 'Leiser', icon: '🔉', build: mediaKey('VOLUME_DOWN') },
+  lock: { name: 'Sperren', icon: 'fa-solid fa-lock', build: () => ({ type: 'lock' }) },
+  sleep: { name: 'Energie sparen', icon: 'fa-solid fa-moon', build: () => ({ type: 'sleep' }) },
+  displayOff: { name: 'Bildschirm aus', icon: 'fa-solid fa-display', build: () => ({ type: 'displayOff' }) },
+  shutdown: { name: 'Herunterfahren', icon: 'fa-solid fa-power-off', confirm: true, build: () => ({ type: 'shutdown' }) },
+  restart: { name: 'Neustart', icon: 'fa-solid fa-rotate-right', confirm: true, build: () => ({ type: 'restart' }) },
+  playPause: { name: 'Play / Pause', icon: 'fa-solid fa-play', build: mediaKey('MEDIA_PLAY_PAUSE') },
+  next: { name: 'Nächster Titel', icon: 'fa-solid fa-forward-step', build: mediaKey('MEDIA_NEXT') },
+  prev: { name: 'Vorheriger Titel', icon: 'fa-solid fa-backward-step', build: mediaKey('MEDIA_PREVIOUS') },
+  mute: { name: 'Stumm an/aus', icon: 'fa-solid fa-volume-xmark', build: mediaKey('VOLUME_MUTE') },
+  volUp: { name: 'Lauter', icon: 'fa-solid fa-volume-high', build: mediaKey('VOLUME_UP') },
+  volDown: { name: 'Leiser', icon: 'fa-solid fa-volume-low', build: mediaKey('VOLUME_DOWN') },
   volume: {
-    name: 'Lautstärke setzen', icon: '🔈', param: 'Lautstärke (0–100)',
+    name: 'Lautstärke setzen', icon: 'fa-solid fa-sliders', param: 'Lautstärke (0–100)',
     build: p => {
       const v = Number(p);
       if (p === '' || !Number.isInteger(v) || v < 0 || v > 100) throw new Error('Lautstärke muss eine Zahl von 0 bis 100 sein.');
@@ -74,7 +74,7 @@ const ACTIONS = {
     },
   },
   hotkey: {
-    name: 'Taste / Tastenkombination', icon: '⌨️', param: 'z. B. CTRL+SHIFT+ESC, WIN+D, F5',
+    name: 'Taste / Tastenkombination', icon: 'fa-solid fa-keyboard', param: 'z. B. CTRL+SHIFT+ESC, WIN+D, F5',
     build: p => {
       const keys = p.split('+').map(k => k.trim().toUpperCase()).filter(Boolean);
       if (!keys.length) throw new Error('Bitte eine Taste angeben.');
@@ -82,31 +82,73 @@ const ACTIONS = {
     },
   },
   text: {
-    name: 'Text tippen', icon: '✍️', param: 'Text',
+    name: 'Text tippen', icon: 'fa-solid fa-i-cursor', param: 'Text',
     build: p => { if (!p) throw new Error('Bitte einen Text angeben.'); return { type: 'text', text: p }; },
   },
   openUrl: {
-    name: 'Website öffnen', icon: '🌐', param: 'https://…',
+    name: 'Website öffnen', icon: 'fa-solid fa-globe', param: 'https://…',
     build: p => {
       if (!/^https?:\/\/\S+$/i.test(p)) throw new Error('URL muss mit http:// oder https:// beginnen.');
       return { type: 'launch', url: p };
     },
   },
   openApp: {
-    name: 'App starten', icon: '🚀', param: 'App-Name (wie im Startmenü)',
+    name: 'App starten', icon: 'fa-solid fa-rocket', param: 'App-Name (wie im Startmenü)',
     build: p => { if (!p) throw new Error('Bitte einen App-Namen angeben.'); return { type: 'launch', name: p }; },
   },
 };
 
 // ---------- Zustand ----------
-const state = { shortcuts: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null } };
+const DEFAULT_DESIGN = {
+  theme: 'auto', accent: null, bgImage: null, bgDim: 30, size: 'm', shape: 'rounded', tiles: 'plain', animations: true,
+};
+const state = {
+  shortcuts: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
+};
 let editing = false;
 const $ = sel => document.querySelector(sel);
 const uid = () => crypto.randomUUID();
 
+// ---------- Design ----------
+// [id, Name, Vorschau-Hintergrund, Vorschau-Farben]
+const THEMES = [
+  ['auto', 'System', 'linear-gradient(135deg, #f4f6fb 50%, #17181c 50%)', ['#1a73e8', '#8ab4f8']],
+  ['light', 'Hell', '#f4f6fb', ['#1a73e8', '#dde1e8']],
+  ['dark', 'Dunkel', '#17181c', ['#8ab4f8', '#2c2f36']],
+  ['midnight', 'Mitternacht', '#000', ['#a78bfa', '#1a1a1f']],
+  ['paper', 'Papier', '#f4ede2', ['#c2410c', '#e2d5c2']],
+  ['aurora', 'Aurora', 'radial-gradient(circle at 30% 30%, #7c3aed, transparent 55%), radial-gradient(circle at 75% 60%, #0d9488, transparent 50%), #0a0f1f', ['#a5b4fc', '#2563eb']],
+  ['ocean', 'Ozean', 'linear-gradient(160deg, #0f2027, #2c5364)', ['#67e8f9', '#203a43']],
+  ['sunset', 'Abendrot', 'linear-gradient(165deg, #1f1c2c, #4a2a73 40%, #b8466a 78%, #f08a5d)', ['#fdba74', '#b8466a']],
+  ['forest', 'Wald', 'linear-gradient(170deg, #0b1a12, #24513a)', ['#86efac', '#163626']],
+];
+
+function applyDesign(d) {
+  const root = document.documentElement;
+  Object.assign(root.dataset, {
+    theme: d.theme, size: d.size, shape: d.shape, tiles: d.tiles, anim: d.animations ? 'on' : 'off',
+  });
+  if (d.accent) {
+    root.style.setProperty('--accent', d.accent);
+    root.style.setProperty('--on-accent', readableOn(d.accent));
+  } else {
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--on-accent');
+  }
+  root.classList.toggle('has-bg-image', !!d.bgImage);
+  if (d.bgImage) root.style.setProperty('--user-bg', `url("${d.bgImage}")`);
+  else root.style.removeProperty('--user-bg');
+  root.style.setProperty('--bg-dim', d.bgImage ? d.bgDim / 100 : 0);
+}
+
+// Kopie im localStorage, damit das Design beim Öffnen sofort steht und nichts aufblitzt.
+try { applyDesign({ ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
+
 async function load() {
-  const d = await storage.get(['shortcuts', 'pcs', 'weather']);
+  const d = await storage.get(['shortcuts', 'pcs', 'weather', 'design']);
   if (d.weather) state.weather = d.weather;
+  state.design = { ...DEFAULT_DESIGN, ...d.design };
+  applyDesign(state.design);
   state.shortcuts = Array.isArray(d.shortcuts) ? d.shortcuts : structuredClone(DEFAULT_SHORTCUTS);
   state.pcs = Array.isArray(d.pcs) ? d.pcs : [];
   // Ältere Einträge mit http://…:5443 reparieren (siehe normalizePcUrl).
@@ -114,7 +156,8 @@ async function load() {
 }
 
 async function save() {
-  await storage.set({ shortcuts: state.shortcuts, pcs: state.pcs, weather: state.weather });
+  await storage.set({ shortcuts: state.shortcuts, pcs: state.pcs, weather: state.weather, design: state.design });
+  try { localStorage.setItem('yfstart.design', JSON.stringify(state.design)); } catch { /* Bild zu groß: dann ohne Sofort-Kopie */ }
 }
 
 // ---------- Hilfen ----------
@@ -132,7 +175,7 @@ function h(tag, attrs = {}, ...kids) {
 let toastTimer;
 function toast(msg, isError = false) {
   const t = $('#toast');
-  t.textContent = msg;
+  t.replaceChildren(fa(isError ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check'), msg);
   t.classList.toggle('error', isError);
   t.hidden = false;
   clearTimeout(toastTimer);
@@ -206,7 +249,7 @@ function showSuggest(list) {
   suggestBox.replaceChildren(...list.map((s, i) => h('li', {
     role: 'option', id: 'sug' + i,
     onmousedown: e => { e.preventDefault(); go(s); },
-  }, s)));
+  }, fa('fa-solid fa-magnifying-glass'), s)));
   const open = list.length > 0;
   suggestBox.hidden = !open;
   $('#searchForm').classList.toggle('open', open);
@@ -268,21 +311,30 @@ document.addEventListener('click', e => { if (!appsPanel.contains(e.target)) set
 document.addEventListener('keydown', e => { if (e.key === 'Escape') setApps(false); });
 
 // ---------- Kacheln ----------
+// Icon einer Kachel (t.icon):
+//   ""            automatisch: Favicon der Website bzw. Symbol der YFRemote-Aktion
+//   "fa:<klassen>" Font-Awesome-Icon, z. B. "fa:fa-brands fa-youtube"
+//   "https://…"   Bild-URL; ein hochgeladenes Bild steht in t.image
+//   sonst         Emoji oder kurzer Text
+const fa = cls => h('i', { class: cls, 'aria-hidden': 'true' });
+
 function paintIcon(ic, t, kind) {
   const color = t.color || '#ffffff';
   ic.style.background = color;
   ic.style.color = t.autoFg !== false ? readableOn(color) : (t.fg || '#ffffff');
   const icon = (t.icon || '').trim();
   const letter = (t.label || '?').slice(0, 1).toUpperCase();
-  const src = t.image
-    || (/^(https?:|data:image\/)/i.test(icon) ? icon : null)
-    || (!icon && kind === 'link' && t.url ? favicon(t.url) : null);
+  if (icon.startsWith('fa:')) return void ic.replaceChildren(fa(icon.slice(3)));
+  const own = t.image || (/^(https?:|data:image\/)/i.test(icon) ? icon : null);
+  const src = own || (!icon && kind === 'link' && t.url ? favicon(t.url) : null);
   if (src) {
-    const img = h('img', { src, alt: '' });
+    const img = h('img', { src, alt: '', class: own && t.imageFill ? 'fill' : null });
     img.addEventListener('error', () => ic.replaceChildren(letter));
     ic.replaceChildren(img);
+  } else if (icon) {
+    ic.replaceChildren(icon);
   } else {
-    ic.replaceChildren(icon || (kind === 'remote' ? ACTIONS[t.action]?.icon : letter) || letter);
+    ic.replaceChildren(kind === 'remote' && ACTIONS[t.action] ? fa(ACTIONS[t.action].icon) : letter);
   }
 }
 
@@ -298,7 +350,7 @@ function tileEl(t, kind) {
 
 function addTile(onclick) {
   return h('button', { class: 'tile add', type: 'button', onclick },
-    h('span', { class: 'ic' }, '+'), h('span', { class: 'lbl' }, 'Hinzufügen'));
+    h('span', { class: 'ic' }, fa('fa-solid fa-plus')), h('span', { class: 'lbl' }, 'Hinzufügen'));
 }
 
 // Drag & Drop zum Sortieren, nur im Bearbeiten-Modus.
@@ -322,6 +374,7 @@ function sortable(el, list, i) {
 function renderShortcuts() {
   const tiles = state.shortcuts.map((s, i) => {
     const el = tileEl(s, 'link');
+    el.style.setProperty('--i', i); // Reihenfolge beim Einblenden
     if (editing) {
       el.addEventListener('click', e => { e.preventDefault(); openTileEditor('link', state.shortcuts, i); });
       sortable(el, state.shortcuts, i);
@@ -336,6 +389,7 @@ function renderPcs() {
   $('#pcs').replaceChildren(...state.pcs.map((pc, pcIndex) => {
     const buttons = pc.buttons.map((b, i) => {
       const el = tileEl(b, 'remote');
+      el.style.setProperty('--i', state.shortcuts.length + pcIndex * 3 + i);
       if (editing) {
         el.addEventListener('click', () => openTileEditor('remote', pc.buttons, i, pc));
         sortable(el, pc.buttons, i);
@@ -345,18 +399,22 @@ function renderPcs() {
       return el;
     });
     if (editing) buttons.push(addTile(() => openTileEditor('remote', pc.buttons, -1, pc)));
-    return h('div', { class: 'pc' },
+    const card = h('div', { class: 'pc' },
       h('div', { class: 'pc-head' },
         h('span', { class: 'dot', 'data-pc': pc.id, title: 'Status wird geprüft…' }),
         h('h3', {}, pc.name),
         h('span', { class: 'host' }, new URL(pc.url).host),
         h('span', { class: 'spacer' }),
-        h('button', { class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen', onclick: () => openScreen(pc) }, '🖥 Bildschirm'),
-        editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) }, '✎ PC bearbeiten'),
+        h('button', { class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen', onclick: () => openScreen(pc) },
+          fa('fa-solid fa-display'), 'Bildschirm'),
+        editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
+          fa('fa-solid fa-pen'), 'PC bearbeiten'),
       ),
       !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – über ⚙ → „PC bearbeiten“ mit der PIN aus dem YFRemote-Tray koppeln.'),
       buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
     );
+    card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
+    return card;
   }));
   checkHealth();
 }
@@ -483,19 +541,25 @@ async function runButton(pc, b, el) {
 // ---------- Kachel-Editor ----------
 const tileDlg = $('#tileDlg');
 const tf = $('#tileForm');
-let tileCtx = null; // { kind, list, index, image }
+// { kind, list, index, mode: 'auto'|'fa'|'text'|'image', faIcon, image }
+let tileCtx = null;
 
-tf.action.append(...Object.entries(ACTIONS).map(([k, a]) => h('option', { value: k }, `${a.icon}  ${a.name}`)));
+tf.action.append(...Object.entries(ACTIONS).map(([k, a]) => h('option', { value: k }, a.name)));
 
 function tileFromForm() {
+  const { mode, faIcon, image } = tileCtx;
   return {
     label: tf.label.value.trim(),
     url: normalizeLink(tf.url.value) || tf.url.value.trim(),
     action: tf.action.value,
     param: tf.param.value,
     confirm: tf.confirm.checked,
-    icon: tf.icon.value.trim(),
-    image: tileCtx.image || null,
+    icon: mode === 'fa' && faIcon ? 'fa:' + faIcon
+      : mode === 'text' ? tf.iconText.value.trim()
+      : mode === 'image' && !image ? tf.iconUrl.value.trim()
+      : '',
+    image: mode === 'image' ? image : null,
+    imageFill: tf.imageFill.checked,
     color: tf.color.value,
     fg: tf.fg.value,
     autoFg: tf.autoFg.checked,
@@ -503,14 +567,20 @@ function tileFromForm() {
 }
 
 function updateTileForm() {
-  const kind = tileCtx.kind;
+  const { kind, mode } = tileCtx;
   tf.querySelectorAll('[data-kind]').forEach(el => (el.hidden = el.dataset.kind !== kind));
   const action = ACTIONS[tf.action.value];
   $('#paramRow').hidden = kind !== 'remote' || !action.param;
   $('#paramLabel').textContent = action.param || '';
   tf.fg.disabled = tf.autoFg.checked;
-  tf.icon.placeholder = tileCtx.image ? 'Hochgeladenes Bild (Text hier ersetzt es)' : 'Emoji, Text oder Bild-URL – leer = automatisch';
+  $('#iconModes').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
+  tf.querySelectorAll('[data-pane]').forEach(p => (p.hidden = p.dataset.pane !== mode));
+  $('#autoModeLabel').textContent = kind === 'link' ? 'Website' : 'Automatisch';
+  $('#autoHint').textContent = kind === 'link'
+    ? 'Nimmt das Icon der Website (Favicon) – passt sich an, wenn die Website ihr Logo ändert.'
+    : 'Nimmt das passende Symbol zur gewählten Aktion.';
   $('#preview').replaceChildren(tileEl(tileFromForm(), kind));
+  if (mode === 'fa') renderFaSuggestions();
 }
 
 function openTileEditor(kind, list, index, pc) {
@@ -520,53 +590,67 @@ function openTileEditor(kind, list, index, pc) {
       ? { label: '', url: '', color: '#ffffff', autoFg: true }
       : { label: '', action: 'lock', param: '', color: '#2b5cd6', autoFg: true })
     : list[index];
-  tileCtx = { kind, list, index, image: t.image || null };
+  const icon = (t.icon || '').trim();
+  const mode = icon.startsWith('fa:') ? 'fa'
+    : t.image || /^(https?:|data:image\/)/i.test(icon) ? 'image'
+    : icon ? 'text' : 'auto';
+  tileCtx = { kind, list, index, mode, faIcon: mode === 'fa' ? icon.slice(3) : null, image: t.image || null };
   $('#tileTitle').textContent = (isNew ? 'Neuer ' : '') + (kind === 'link' ? 'Shortcut' : `Button für ${pc.name}`);
   tf.label.value = t.label || '';
   tf.url.value = t.url || '';
   tf.action.value = t.action || 'lock';
   tf.param.value = t.param || '';
   tf.confirm.checked = !!(t.confirm ?? ACTIONS[tf.action.value].confirm);
-  tf.icon.value = t.icon || '';
+  tf.iconText.value = mode === 'text' ? icon : '';
+  tf.iconUrl.value = mode === 'image' && !t.image ? icon : '';
+  tf.imageFill.checked = !!t.imageFill;
   tf.color.value = t.color || '#ffffff';
   tf.fg.value = t.fg || '#ffffff';
   tf.autoFg.checked = t.autoFg !== false;
+  $('#faSearch').value = '';
   $('#tileDelete').hidden = isNew;
   updateTileForm();
   tileDlg.showModal();
   tf.label.focus();
+  loadFaIcons().then(() => { if (tileCtx.mode === 'fa') { renderFaSuggestions(); renderFaGrid(); } });
 }
 
-tf.addEventListener('input', updateTileForm);
+tf.addEventListener('input', e => { if (e.target.id !== 'faSearch') updateTileForm(); });
 tf.action.addEventListener('change', () => {
   tf.confirm.checked = !!ACTIONS[tf.action.value].confirm;
   tf.param.value = '';
   updateTileForm();
 });
-tf.icon.addEventListener('input', () => { if (tf.icon.value) tileCtx.image = null; });
+$('#iconModes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-mode]');
+  if (!b) return;
+  tileCtx.mode = b.dataset.mode;
+  updateTileForm();
+  if (tileCtx.mode === 'fa') loadFaIcons().then(() => { renderFaSuggestions(); renderFaGrid(); });
+});
+tf.iconUrl.addEventListener('input', () => { tileCtx.image = null; });
 $('#iconUpload').addEventListener('click', () => $('#iconFile').click());
-$('#iconClear').addEventListener('click', () => { tf.icon.value = ''; tileCtx.image = null; updateTileForm(); });
 $('#iconFile').addEventListener('change', async e => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
   try {
-    tileCtx.image = await shrinkImage(file);
-    tf.icon.value = '';
+    tileCtx.image = await shrinkImage(file, 128, 'image/png');
+    tf.iconUrl.value = '';
     updateTileForm();
   } catch {
     toast('Bild konnte nicht gelesen werden.', true);
   }
 });
 
-// Hochgeladene Bilder auf max. 128 px verkleinern, damit der Speicher klein bleibt.
-async function shrinkImage(file) {
+// Hochgeladene Bilder verkleinern, damit der Speicher klein bleibt.
+async function shrinkImage(file, maxSize, type, quality) {
   try {
     const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, 128 / Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, maxSize / Math.max(bmp.width, bmp.height));
     const c = h('canvas', { width: Math.round(bmp.width * scale), height: Math.round(bmp.height * scale) });
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-    return c.toDataURL('image/png');
+    return c.toDataURL(type, quality);
   } catch {
     if (file.size > 300_000) throw new Error('too big');
     return await new Promise((res, rej) => {
@@ -577,6 +661,124 @@ async function shrinkImage(file) {
     });
   }
 }
+
+// ---------- Font-Awesome-Auswahl ----------
+// vendor/fontawesome/icons.json: [name, Stile (s=solid, r=regular, b=brands), Suchbegriffe]
+let faIcons = null;
+const loadFaIcons = () => (faIcons ??= fetch('vendor/fontawesome/icons.json').then(r => r.json()).then(list => (faList = list)).catch(() => []));
+let faList = []; // geladene Liste, sobald loadFaIcons fertig ist
+const faClass = ([name, styles]) => `${styles.includes('s') ? 'fa-solid' : styles.includes('b') ? 'fa-brands' : 'fa-regular'} fa-${name}`;
+
+// Markenfarben, damit z. B. das YouTube-Icon gleich auf Rot sitzt.
+const BRAND_COLORS = {
+  youtube: '#ff0000', github: '#181717', spotify: '#1db954', twitch: '#9146ff', discord: '#5865f2', reddit: '#ff4500',
+  'x-twitter': '#000000', instagram: '#e4405f', facebook: '#1877f2', linkedin: '#0a66c2', whatsapp: '#25d366',
+  amazon: '#ff9900', steam: '#171a21', paypal: '#003087', google: '#4285f4', 'google-drive': '#1fa463',
+  'wikipedia-w': '#000000', apple: '#000000', microsoft: '#00a4ef', telegram: '#26a5e4', pinterest: '#e60023',
+  tiktok: '#000000', dropbox: '#0061ff', slack: '#4a154b', trello: '#0052cc', figma: '#f24e1e',
+  'stack-overflow': '#f58025', gitlab: '#fc6d26', docker: '#2496ed', npm: '#cb3837', python: '#3776ab',
+  chrome: '#4285f4', firefox: '#ff7139', soundcloud: '#ff5500', vimeo: '#1ab7ea', ebay: '#e53238',
+  claude: '#d97757', openai: '#000000', playstation: '#003791', xbox: '#107c10', mastodon: '#6364ff',
+  bluesky: '#1185fe', threads: '#000000', snapchat: '#fffc00', 'google-play': '#01875f', airbnb: '#ff5a5f',
+  dribbble: '#ea4c89', behance: '#1769ff', medium: '#000000', patreon: '#ff424d', notion: '#000000',
+};
+
+// Begriffe in Adresse oder Name -> passende allgemeine Icons
+const KEYWORD_ICONS = [
+  [/mail|gmx|web\.de|outlook|posteo|proton/, ['envelope', 'inbox']],
+  [/news|zeitung|spiegel|tagesschau|heise|golem|zeit\.de|faz|sz\.de/, ['newspaper', 'rss']],
+  [/shop|amazon|ebay|otto|zalando|kaufland|idealo|aliexpress/, ['cart-shopping', 'bag-shopping', 'store']],
+  [/bank|sparkasse|volksbank|paypal|finanz|depot|trade|n26|dkb|ing\./, ['building-columns', 'wallet', 'euro-sign']],
+  [/map|karte|route|bahn|db\.de|navi/, ['map-location-dot', 'train', 'route']],
+  [/music|musik|spotify|soundcloud|radio|deezer/, ['music', 'headphones']],
+  [/video|film|netflix|prime|disney|kino|joyn|ard|zdf|serie|youtube/, ['film', 'tv', 'clapperboard']],
+  [/drive|cloud|dropbox|onedrive|nextcloud/, ['cloud', 'folder-open']],
+  [/calendar|kalender|termin/, ['calendar-days']],
+  [/chat|whatsapp|telegram|discord|teams|signal|slack/, ['comments', 'message']],
+  [/docs|notion|wiki|confluence|obsidian/, ['file-lines', 'book']],
+  [/game|spiel|steam|epic|xbox|playstation|nintendo/, ['gamepad', 'dice']],
+  [/weather|wetter/, ['cloud-sun', 'umbrella']],
+  [/learn|uni|schule|moodle|ilias|kurs/, ['graduation-cap', 'book-open']],
+  [/code|dev|stack|git|localhost|api/, ['code', 'terminal', 'bug']],
+  [/\bai\b|claude|gpt|gemini|copilot|perplexity|chat/, ['robot', 'wand-magic-sparkles', 'brain']],
+  [/photo|foto|bilder|instagram|flickr/, ['camera', 'image']],
+  [/home|haus|smart|router|fritz|nas|server/, ['house', 'server', 'network-wired']],
+  [/sport|fitness|strava|kicker/, ['dumbbell', 'futbol']],
+  [/rezept|chefkoch|food|essen|lieferando/, ['utensils', 'pizza-slice']],
+  [/job|arbeit|work|linkedin|xing/, ['briefcase']],
+];
+const ACTION_ICONS = {
+  lock: ['lock', 'user-lock', 'shield-halved'], sleep: ['moon', 'bed'], displayOff: ['display', 'tv', 'eye-slash'],
+  shutdown: ['power-off', 'plug'], restart: ['rotate-right', 'arrows-rotate'], playPause: ['play', 'pause', 'circle-play'],
+  next: ['forward-step', 'forward'], prev: ['backward-step', 'backward'], mute: ['volume-xmark', 'volume-off'],
+  volUp: ['volume-high', 'plus'], volDown: ['volume-low', 'minus'], volume: ['sliders', 'volume-high'],
+  hotkey: ['keyboard', 'desktop', 'window-maximize'], text: ['i-cursor', 'pen', 'keyboard'],
+  openUrl: ['globe', 'link'], openApp: ['rocket', 'window-restore', 'gamepad', 'code'],
+};
+const GENERAL_ICONS = ['globe', 'star', 'bookmark', 'heart', 'house', 'link', 'bolt', 'briefcase'];
+// Ohne Suchbegriff zeigt die Auswahl diese Icons statt der alphabetischen Liste (die mit 0-9, A-Z beginnt).
+const POPULAR_ICONS = [
+  'house', 'star', 'heart', 'bookmark', 'globe', 'link', 'envelope', 'inbox', 'calendar-days', 'clock', 'bell',
+  'magnifying-glass', 'gear', 'user', 'users', 'comments', 'message', 'phone', 'video', 'camera', 'image', 'music',
+  'headphones', 'film', 'tv', 'gamepad', 'dice', 'book', 'book-open', 'newspaper', 'file-lines', 'folder-open',
+  'cloud', 'cloud-sun', 'umbrella', 'map-location-dot', 'location-dot', 'car', 'train', 'plane', 'bicycle',
+  'cart-shopping', 'bag-shopping', 'store', 'credit-card', 'wallet', 'building-columns', 'euro-sign', 'chart-line',
+  'briefcase', 'graduation-cap', 'code', 'terminal', 'bug', 'server', 'database', 'network-wired', 'wifi',
+  'desktop', 'laptop', 'mobile-screen', 'display', 'keyboard', 'robot', 'brain', 'wand-magic-sparkles', 'bolt',
+  'fire', 'leaf', 'sun', 'moon', 'mug-hot', 'utensils', 'pizza-slice', 'dumbbell', 'futbol', 'paw', 'gift',
+  'lightbulb', 'lock', 'shield-halved', 'key', 'power-off', 'rocket', 'flag', 'trophy', 'crown', 'pen', 'palette',
+];
+
+function faSuggestions() {
+  const solid = name => 'fa-solid fa-' + name;
+  const list = [];
+  const { kind } = tileCtx;
+  const url = kind === 'link' ? tf.url.value : tf.action.value === 'openUrl' ? tf.param.value : '';
+  // Marken aus Adresse und Name, z. B. open.spotify.com -> spotify
+  let host = '';
+  try { host = new URL(normalizeLink(url) || 'x:').hostname; } catch { /* keine Adresse */ }
+  const words = [...host.split('.').slice(0, -1), ...tf.label.value.toLowerCase().split(/[^a-z0-9]+/)]
+    .filter(w => w.length > 1 && w !== 'www');
+  const flat = s => s.replace(/-/g, '');
+  for (const [name, styles] of faList) {
+    if (!styles.includes('b')) continue;
+    if (words.some(w => flat(name) === flat(w) || name.startsWith(w + '-'))) list.push('fa-brands fa-' + name);
+  }
+  const text = (host + ' ' + tf.label.value).toLowerCase();
+  if (kind === 'remote') list.push(...(ACTION_ICONS[tf.action.value] || []).map(solid));
+  for (const [re, names] of KEYWORD_ICONS) if (re.test(text)) list.push(...names.map(solid));
+  list.push(...GENERAL_ICONS.map(solid));
+  return [...new Set(list)].slice(0, 18);
+}
+
+function faButton(cls) {
+  return h('button', {
+    type: 'button', title: cls.replace(/fa-(solid|regular|brands) fa-/, ''), 'aria-pressed': tileCtx.faIcon === cls,
+    onclick: () => pickFa(cls),
+  }, fa(cls));
+}
+
+function pickFa(cls) {
+  tileCtx.faIcon = cls;
+  const brand = cls.startsWith('fa-brands') && BRAND_COLORS[cls.slice('fa-brands fa-'.length)];
+  if (brand) { tf.color.value = brand; tf.autoFg.checked = true; }
+  updateTileForm();
+  renderFaGrid();
+}
+
+function renderFaSuggestions() {
+  $('#faSuggest').replaceChildren(...faSuggestions().map(faButton));
+}
+
+function renderFaGrid() {
+  const query = $('#faSearch').value.trim().toLowerCase();
+  const matches = query
+    ? faList.filter(([name, , terms]) => name.includes(query) || terms.includes(query))
+      .sort((a, b) => b[0].startsWith(query) - a[0].startsWith(query))
+    : POPULAR_ICONS.map(name => [name, 's']);
+  $('#faGrid').replaceChildren(...matches.slice(0, 240).map(entry => faButton(faClass(entry))));
+}
+$('#faSearch').addEventListener('input', () => renderFaGrid());
 
 tf.addEventListener('submit', e => {
   if (e.submitter?.value !== 'ok') return;
@@ -686,7 +888,9 @@ $('#addPc').addEventListener('click', () => openPcEditor(-1));
 
 $('#exportBtn').addEventListener('click', () => {
   // Ohne Kopplungs-Tokens: wer die Datei hat, soll die PCs nicht steuern können.
-  const data = { shortcuts: state.shortcuts, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather };
+  const data = {
+    shortcuts: state.shortcuts, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather, design: state.design,
+  };
   const a = h('a', {
     href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })),
     download: 'yfstart-backup.json',
@@ -707,6 +911,7 @@ $('#importFile').addEventListener('change', async e => {
     state.shortcuts = data.shortcuts;
     state.pcs = data.pcs.map(pc => ({ ...pc, token: null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [] }));
     if (data.weather) state.weather = data.weather;
+    if (data.design) applyDesign(state.design = { ...DEFAULT_DESIGN, ...data.design });
     await save();
     render();
     renderWeather();
@@ -721,6 +926,7 @@ tick();
 setInterval(tick, 1000);
 load().then(() => {
   render();
+  setTimeout(() => document.body.classList.remove('intro'), 1500); // Einblenden nur beim Öffnen
   setInterval(checkHealth, 30_000);
   renderWeather();
   setInterval(renderWeather, 15 * 60_000);
@@ -730,11 +936,13 @@ load().then(() => {
 // ---------- Wetter ----------
 // Open-Meteo: kostenlos, ohne API-Schlüssel, erlaubt Abrufe von jeder Seite (CORS).
 // Wetterdaten höchstens alle 30 Minuten neu holen, nicht bei jedem neuen Tab.
-const WEATHER_CODES = [ // WMO-Code -> Symbol, Text
-  [[0], '☀️', 'Klar'], [[1], '🌤️', 'Überwiegend klar'], [[2], '⛅', 'Teilweise bewölkt'], [[3], '☁️', 'Bewölkt'],
-  [[45, 48], '🌫️', 'Nebel'], [[51, 53, 55, 56, 57], '🌦️', 'Nieselregen'], [[61, 63, 65, 66, 67], '🌧️', 'Regen'],
-  [[71, 73, 75, 77], '🌨️', 'Schnee'], [[80, 81, 82], '🌦️', 'Regenschauer'], [[85, 86], '🌨️', 'Schneeschauer'],
-  [[95, 96, 99], '⛈️', 'Gewitter'],
+const WEATHER_CODES = [ // WMO-Code -> Font-Awesome-Icon, Farbklasse, Text
+  [[0], 'sun', 'w-sun', 'Klar'], [[1], 'cloud-sun', 'w-cloud', 'Überwiegend klar'],
+  [[2], 'cloud-sun', 'w-cloud', 'Teilweise bewölkt'], [[3], 'cloud', 'w-cloud', 'Bewölkt'],
+  [[45, 48], 'smog', 'w-fog', 'Nebel'], [[51, 53, 55, 56, 57], 'cloud-rain', 'w-rain', 'Nieselregen'],
+  [[61, 63, 65, 66, 67], 'cloud-showers-heavy', 'w-rain', 'Regen'], [[71, 73, 75, 77], 'snowflake', 'w-snow', 'Schnee'],
+  [[80, 81, 82], 'cloud-sun-rain', 'w-rain', 'Regenschauer'], [[85, 86], 'snowflake', 'w-snow', 'Schneeschauer'],
+  [[95, 96, 99], 'cloud-bolt', 'w-storm', 'Gewitter'],
 ];
 
 async function renderWeather() {
@@ -756,13 +964,14 @@ async function renderWeather() {
     }
   }
   const { current, daily } = cache.data;
-  let [, icon, text] = WEATHER_CODES.find(([codes]) => codes.includes(current.weather_code)) ?? [, '🌡️', ''];
-  if (!current.is_day && current.weather_code <= 1) icon = '🌙';
+  let [, icon, tone, text] = WEATHER_CODES.find(([codes]) => codes.includes(current.weather_code))
+    ?? [, 'temperature-half', 'w-cloud', ''];
+  if (!current.is_day && current.weather_code <= 2) [icon, tone] = [current.weather_code ? 'cloud-moon' : 'moon', 'w-moon'];
   const max = Math.round(daily.temperature_2m_max[0]), min = Math.round(daily.temperature_2m_min[0]);
   el.href = 'https://www.google.com/search?q=' + encodeURIComponent('Wetter ' + w.name);
   el.title = `Aktualisiert ${new Date(cache.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
   el.replaceChildren(
-    h('span', { class: 'w-icon' }, icon),
+    h('span', { class: 'w-icon' }, fa(`fa-solid fa-${icon} ${tone}`)),
     h('span', { class: 'w-temp' }, `${Math.round(current.temperature_2m)}°`),
     h('span', {}, [w.name, text, `↑ ${max}°  ↓ ${min}°`].filter(Boolean).join(' · ')),
   );
@@ -849,3 +1058,75 @@ async function checkForUpdate() {
 
 // Abbrechen-Buttons sind type="button", damit Enter im Formular speichert statt abbricht.
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+
+// ---------- Design-Dialog ----------
+// Jede Änderung wirkt sofort als Vorschau. Abbrechen (auch Esc) stellt den Stand von vorher wieder her.
+const designDlg = $('#designDlg');
+const df = $('#designForm');
+let designBefore = null;
+
+function syncDesignForm() {
+  const d = state.design;
+  $('#themes').querySelectorAll('.theme-card').forEach(c => c.setAttribute('aria-pressed', c.dataset.theme === d.theme));
+  df.ownAccent.checked = !!d.accent;
+  df.accent.disabled = !d.accent;
+  df.accent.value = d.accent || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1a73e8';
+  df.bgDim.value = d.bgDim;
+  df.bgDim.disabled = !d.bgImage;
+  $('#bgClear').disabled = !d.bgImage;
+  for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles']]) {
+    $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
+  }
+  df.animations.checked = d.animations;
+}
+
+function changeDesign(patch) {
+  Object.assign(state.design, patch);
+  applyDesign(state.design);
+  syncDesignForm();
+}
+
+$('#themes').append(...THEMES.map(([id, name, preview, colors]) => h('button', {
+  type: 'button', class: 'theme-card', 'data-theme': id, onclick: () => changeDesign({ theme: id }),
+}, h('span', { class: 'sw', style: `background:${preview}` }, colors.map(c => h('span', { style: `background:${c}` }))),
+  h('span', { class: 'nm' }, name))));
+
+for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles']]) {
+  $(seg).addEventListener('click', e => {
+    const b = e.target.closest('button[data-value]');
+    if (b) changeDesign({ [key]: b.dataset.value });
+  });
+}
+df.ownAccent.addEventListener('change', () => changeDesign({ accent: df.ownAccent.checked ? df.accent.value : null }));
+df.accent.addEventListener('input', () => changeDesign({ accent: df.accent.value }));
+df.bgDim.addEventListener('input', () => changeDesign({ bgDim: Number(df.bgDim.value) }));
+df.animations.addEventListener('change', () => changeDesign({ animations: df.animations.checked }));
+$('#bgUpload').addEventListener('click', () => $('#bgFile').click());
+$('#bgFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    changeDesign({ bgImage: await shrinkImage(file, 2560, 'image/jpeg', 0.85) });
+  } catch {
+    toast('Bild konnte nicht gelesen werden.', true);
+  }
+});
+$('#bgClear').addEventListener('click', () => changeDesign({ bgImage: null }));
+$('#designReset').addEventListener('click', () => changeDesign({ ...DEFAULT_DESIGN }));
+
+$('#designBtn').addEventListener('click', () => {
+  designBefore = structuredClone(state.design);
+  syncDesignForm();
+  designDlg.showModal();
+});
+$('#designCancel').addEventListener('click', () => designDlg.close());
+designDlg.addEventListener('close', () => {
+  if (designDlg.returnValue === 'ok') {
+    save();
+  } else {
+    state.design = designBefore;
+    applyDesign(state.design);
+  }
+  designDlg.returnValue = '';
+});
