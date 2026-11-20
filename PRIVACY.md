@@ -20,7 +20,8 @@ löscht Chrome sie.
 - **Wetter (nur wenn eingeschaltet):** Der eingegebene Ortsname geht an
   `geocoding-api.open-meteo.com`, die Koordinaten des Orts an `api.open-meteo.com`.
 - **Symbole:** Für Shortcuts ohne eigenes Icon lädt YFStart das Favicon über
-  `www.google.com/s2/favicons` mit der Adresse des Shortcuts. Die Symbole der Google-Apps kommen
+  `www.google.com/s2/favicons` mit der Adresse des Shortcuts. Kennt Google die Seite nicht, fragt
+  YFStart die Seite selbst nach `/favicon.ico` bzw. `/apple-touch-icon.png`. Die Symbole der Google-Apps kommen
   von `ssl.gstatic.com`.
 - **YFRemote-PCs:** Befehle, Kopplungsanfragen (mit der eingegebenen PIN) und Statusabfragen gehen
   nur an die PCs, die selbst eingetragen wurden, in der Regel im eigenen Heimnetz. Zugriff auf

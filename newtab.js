@@ -322,6 +322,24 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') setApps(fals
 //   "https://…"   Bild-URL; ein hochgeladenes Bild steht in t.image
 //   sonst         Emoji oder kurzer Text
 const fa = cls => h('i', { class: cls, 'aria-hidden': 'true' });
+
+// Website-Icon: Googles Favicon-Dienst kennt nur Seiten, die Google gecrawlt hat. Für andere (eigene
+// Server, Seiten hinter einem Login) liefert er einen grauen 16-px-Globus mit Status 404, den Chrome
+// trotzdem als geladen meldet. Dann direkt bei der Seite nachsehen.
+function siteIconCandidates(url) {
+  let origin;
+  try { origin = new URL(url).origin; } catch { return []; }
+  return [favicon(url), origin + '/favicon.ico', origin + '/apple-touch-icon.png'];
+}
+
+// Lädt die erste Adresse, die ein brauchbares Bild liefert. 16 px und kleiner zählt als Platzhalter.
+function loadFirstIcon(img, candidates, onFail) {
+  let i = 0;
+  const next = () => (i < candidates.length ? (img.src = candidates[i++]) : onFail());
+  img.addEventListener('load', () => { if (img.naturalWidth <= 16) next(); });
+  img.addEventListener('error', next);
+  next();
+}
 const linkTarget = t => ((t.openIn || state.design.openIn) === 'new' ? '_blank' : null);
 
 function paintIcon(ic, t, kind) {
@@ -332,11 +350,14 @@ function paintIcon(ic, t, kind) {
   const letter = (t.label || '?').slice(0, 1).toUpperCase();
   if (icon.startsWith('fa:')) return void ic.replaceChildren(fa(icon.slice(3)));
   const own = t.image || (/^(https?:|data:image\/)/i.test(icon) ? icon : null);
-  const src = own || (!icon && kind === 'link' && t.url ? favicon(t.url) : null);
-  if (src) {
-    const img = h('img', { src, alt: '', class: own && t.imageFill ? 'fill' : null });
+  if (own) {
+    const img = h('img', { src: own, alt: '', class: t.imageFill ? 'fill' : null });
     img.addEventListener('error', () => ic.replaceChildren(letter));
     ic.replaceChildren(img);
+  } else if (!icon && kind === 'link' && t.url) {
+    const img = h('img', { alt: '' });
+    ic.replaceChildren(img);
+    loadFirstIcon(img, siteIconCandidates(t.url), () => ic.replaceChildren(letter));
   } else if (icon) {
     ic.replaceChildren(icon);
   } else {
