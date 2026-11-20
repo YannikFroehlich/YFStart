@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neuer Tab</title>
+<link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="https://mail.google.com/mail/" class="toplink">Gmail</a>
+  <a href="https://www.google.com/imghp" class="toplink">Bilder</a>
+  <div class="apps-wrap">
+    <button id="appsBtn" class="iconbtn" title="Google-Apps" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M6 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+    </button>
+    <div id="appsPanel" class="apps-panel" hidden></div>
+  </div>
+  <button id="editBtn" class="iconbtn" title="Bearbeiten">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L14.9 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.4 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.9h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM12.9 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+  </button>
+</header>
+
+<main>
+  <div id="clock" class="clock"></div>
+
+  <form id="searchForm" class="search" autocomplete="off" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+    <input id="q" name="q" type="search" placeholder="Mit Google suchen oder URL eingeben" aria-label="Suche" autofocus
+           role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false">
+    <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+  </form>
+
+  <div id="editbar" class="editbar" hidden>
+    <button id="addShortcut" class="btn">+ Shortcut</button>
+    <button id="addPc" class="btn">+ PC (YFRemote)</button>
+    <button id="exportBtn" class="btn">Exportieren</button>
+    <button id="importBtn" class="btn">Importieren</button>
+    <input id="importFile" type="file" accept="application/json" hidden>
+    <button id="doneBtn" class="btn primary">Fertig</button>
+  </div>
+
+  <section id="shortcuts" class="grid" aria-label="Shortcuts"></section>
+  <section id="pcs" class="pcs" aria-label="YFRemote"></section>
+</main>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<!-- Shortcut / YFRemote-Button bearbeiten -->
+<dialog id="tileDlg">
+  <form method="dialog" id="tileForm">
+    <h2 id="tileTitle">Shortcut</h2>
+    <div class="dlg-body">
+      <div class="preview-col"><div id="preview"></div></div>
+      <div class="fields">
+        <label>Text <input name="label" maxlength="40"></label>
+
+        <label data-kind="link">URL <input name="url" placeholder="https://…"></label>
+
+        <label data-kind="remote">Aktion
+          <select name="action"></select>
+        </label>
+        <label data-kind="remote" id="paramRow"><span id="paramLabel">Parameter</span> <input name="param"></label>
+        <label data-kind="remote" class="check"><input type="checkbox" name="confirm"> Vor dem Ausführen nachfragen</label>
+
+        <label>Icon <input name="icon" placeholder="Emoji, Text oder Bild-URL – leer = automatisch"></label>
+        <div class="row">
+          <button type="button" id="iconUpload" class="btn small">Bild hochladen…</button>
+          <input type="file" id="iconFile" accept="image/*" hidden>
+          <button type="button" id="iconClear" class="btn small">Icon leeren</button>
+        </div>
+        <div class="row">
+          <label class="color">Hintergrund <input type="color" name="color"></label>
+          <label class="color">Icon-/Textfarbe <input type="color" name="fg"></label>
+          <label class="check"><input type="checkbox" name="autoFg"> automatisch</label>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="tileDelete" class="btn danger">Löschen</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- PC bearbeiten / koppeln -->
+<dialog id="pcDlg">
+  <form method="dialog" id="pcForm">
+    <h2>PC (YFRemote)</h2>
+    <label>Name <input name="name" required maxlength="40" placeholder="z. B. Gaming-PC"></label>
+    <label>Adresse <input name="url" required placeholder="http://192.168.178.20:5050"></label>
+    <div class="pair">
+      <label>PIN aus dem YFRemote-Tray <input name="pin" inputmode="numeric" maxlength="6" placeholder="123456"></label>
+      <button type="button" id="pairBtn" class="btn">Koppeln</button>
+    </div>
+    <p id="pairStatus" class="muted"></p>
+    <div class="dlg-actions">
+      <button type="button" id="pcDelete" class="btn danger">Entfernen</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="newtab.js"></script>
+</body>
+</html>
