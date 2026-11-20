@@ -1,8 +1,0 @@
-# Nicht ins Store-Paket (git archive), nur ins Repo.
-.claude/ export-ignore
-store/ export-ignore
-STORE.md export-ignore
-PRIVACY.md export-ignore
-icons/icon.svg export-ignore
-.gitattributes export-ignore
-.gitignore export-ignore

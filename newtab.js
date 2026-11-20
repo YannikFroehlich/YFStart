@@ -719,7 +719,41 @@ setInterval(tick, 1000);
 load().then(() => {
   render();
   setInterval(checkHealth, 30_000);
+  checkForUpdate();
 });
+
+// ---------- Update-Hinweis ----------
+// YFStart wird per git verteilt. Liegt auf GitHub eine höhere Version im Manifest, zeigt die Seite
+// einen Hinweis. Höchstens alle 6 Stunden nachsehen, nicht bei jedem neuen Tab.
+const MANIFEST_URL = 'https://raw.githubusercontent.com/YannikFroehlich/YFStart/main/manifest.json';
+
+const isNewer = (a, b) => {
+  const [x, y] = [a, b].map(v => String(v).split('.').map(Number));
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  }
+  return false;
+};
+
+async function checkForUpdate() {
+  if (!hasExt) return;
+  const current = chrome.runtime.getManifest().version;
+  let { updateCheck } = await storage.get(['updateCheck']);
+  if (!updateCheck || Date.now() - updateCheck.at > 6 * 3600_000) {
+    try {
+      const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+      updateCheck = { at: Date.now(), latest: (await res.json()).version };
+      await storage.set({ updateCheck });
+    } catch { return; /* offline */ }
+  }
+  if (!isNewer(updateCheck.latest, current)) return;
+  const box = $('#update');
+  box.replaceChildren(
+    h('span', {}, `Update ${updateCheck.latest} verfügbar: im YFStart-Ordner `, h('code', {}, 'git pull'), ' ausführen, dann'),
+    h('button', { class: 'btn small', type: 'button', onclick: () => chrome.runtime.reload() }, 'Neu laden'),
+  );
+  box.hidden = false;
+}
 
 // Abbrechen-Buttons sind type="button", damit Enter im Formular speichert statt abbricht.
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));

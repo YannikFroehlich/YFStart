@@ -39,6 +39,11 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Kopfzeile */
 .topbar { display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 10px 16px; }
+.update {
+  margin-right: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 13px; padding: 6px 12px; border-radius: 8px; background: var(--surface-2);
+}
+.update code { font-size: 12px; }
 .toplink { text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
 .toplink:hover { text-decoration: underline; }
 .iconbtn {
