@@ -5,7 +5,7 @@
 // Weiternavigieren verschwindet.
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === 'openScreen' && sender.tab?.id != null && /^https?:\/\//.test(msg.url)) {
-    openScreen(sender.tab.id, msg.url, msg.token).catch(() => { /* PC offline: Chrome zeigt seine Fehlerseite */ });
+    openScreen(sender.tab, msg.url, msg.token, msg.newTab).catch(() => { /* PC offline: Chrome zeigt seine Fehlerseite */ });
   } else if (msg?.type === 'exitWindowFullscreen' && sender.tab) {
     exitWindowFullscreen(sender.tab.windowId);
   }
@@ -28,23 +28,28 @@ async function exitWindowFullscreen(windowId) {
 }
 
 // Zugriff auf den PC und fullscreen-flag.js hat newtab.js (ensureHostAccess) vorher eingerichtet.
-async function openScreen(tabId, url, token) {
-  let loaded = tabLoaded(tabId);
+// newTab: in einem neuen Tab neben der Tab-Seite statt in ihr.
+async function openScreen(source, url, token, newTab) {
+  const tabId = newTab
+    ? (await chrome.tabs.create({ url: 'about:blank', index: source.index + 1, openerTabId: source.id })).id
+    : source.id;
+  let loaded = tabLoaded(tabId, url);
   const tab = await chrome.tabs.update(tabId, { url: url + '#yfstart-fullscreen' });
   // Höchstens zweimal: beim ersten Mal legt showScreenTab evtl. die Kopplung ab und lädt neu.
   for (let attempt = 0; attempt < 2; attempt++) {
     await loaded;
-    loaded = tabLoaded(tabId);
+    loaded = tabLoaded(tabId, url);
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: showScreenTab, args: [token] });
     if (result !== 'reload') break;
   }
   await enterWindowFullscreen(tab.windowId);
 }
 
-function tabLoaded(tabId) {
+// Erst fertig, wenn die Seite des PCs geladen ist - nicht schon das about:blank eines neuen Tabs.
+function tabLoaded(tabId, urlPrefix) {
   return new Promise(resolve => {
-    const listener = (id, info) => {
-      if (id !== tabId || info.status !== 'complete') return;
+    const listener = (id, info, tab) => {
+      if (id !== tabId || info.status !== 'complete' || !tab.url?.startsWith(urlPrefix)) return;
       chrome.tabs.onUpdated.removeListener(listener);
       resolve();
     };

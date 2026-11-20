@@ -101,6 +101,7 @@ const ACTIONS = {
 // ---------- Zustand ----------
 const DEFAULT_DESIGN = {
   theme: 'auto', accent: null, bgImage: null, bgDim: 30, size: 'm', shape: 'rounded', tiles: 'plain', animations: true,
+  openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
 };
 const state = {
   shortcuts: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
@@ -139,6 +140,7 @@ function applyDesign(d) {
   if (d.bgImage) root.style.setProperty('--user-bg', `url("${d.bgImage}")`);
   else root.style.removeProperty('--user-bg');
   root.style.setProperty('--bg-dim', d.bgImage ? d.bgDim / 100 : 0);
+  document.querySelectorAll('a[data-follow]').forEach(a => (a.target = d.openIn === 'new' ? '_blank' : ''));
 }
 
 // Kopie im localStorage, damit das Design beim Öffnen sofort steht und nichts aufblitzt.
@@ -301,7 +303,7 @@ $('#searchForm').addEventListener('submit', e => { e.preventDefault(); go(q.valu
 const appsBtn = $('#appsBtn');
 const appsPanel = $('#appsPanel');
 appsPanel.append(...GOOGLE_APPS.map(([name, url, icon]) =>
-  h('a', { class: 'app', href: url }, h('img', { src: icon || favicon(url), alt: '' }), name)));
+  h('a', { class: 'app', href: url, 'data-follow': true }, h('img', { src: icon || favicon(url), alt: '' }), name)));
 function setApps(open) {
   appsPanel.hidden = !open;
   appsBtn.setAttribute('aria-expanded', open);
@@ -342,7 +344,7 @@ function tileEl(t, kind) {
   const ic = h('span', { class: 'ic' });
   paintIcon(ic, t, kind);
   const el = kind === 'link'
-    ? h('a', { class: 'tile', href: t.url, title: t.url })
+    ? h('a', { class: 'tile', href: t.url, title: t.url, target: (t.openIn || state.design.openIn) === 'new' ? '_blank' : null })
     : h('button', { class: 'tile', type: 'button', title: ACTIONS[t.action]?.name });
   el.append(ic, h('span', { class: 'lbl' }, t.label || ''));
   return el;
@@ -405,7 +407,7 @@ function renderPcs() {
         h('h3', {}, pc.name),
         h('span', { class: 'host' }, new URL(pc.url).host),
         h('span', { class: 'spacer' }),
-        h('button', { class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen', onclick: () => openScreen(pc) },
+        h('button', { class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen', onclick: e => openScreen(pc, e.ctrlKey || e.metaKey) },
           fa('fa-solid fa-display'), 'Bildschirm'),
         editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
           fa('fa-solid fa-pen'), 'PC bearbeiten'),
@@ -512,14 +514,15 @@ function sendAction(pc, message) {
 }
 
 // Erledigt background.js: YFRemote-Client öffnen und auf den Bildschirm-Tab schalten.
-async function openScreen(pc) {
+async function openScreen(pc, forceNewTab = false) {
   if (!hasExt) return void (location.href = pc.url + '/');
   try {
     await ensureHostAccess(pc.url);
   } catch (err) {
     return toast(err.message, true);
   }
-  chrome.runtime.sendMessage({ type: 'openScreen', url: pc.url + '/', token: pc.token });
+  const newTab = forceNewTab || state.design.screenIn === 'new';
+  chrome.runtime.sendMessage({ type: 'openScreen', url: pc.url + '/', token: pc.token, newTab });
 }
 
 async function runButton(pc, b, el) {
@@ -563,6 +566,7 @@ function tileFromForm() {
     color: tf.color.value,
     fg: tf.fg.value,
     autoFg: tf.autoFg.checked,
+    openIn: tf.openIn.value,
   };
 }
 
@@ -607,6 +611,7 @@ function openTileEditor(kind, list, index, pc) {
   tf.color.value = t.color || '#ffffff';
   tf.fg.value = t.fg || '#ffffff';
   tf.autoFg.checked = t.autoFg !== false;
+  tf.openIn.value = t.openIn || '';
   $('#faSearch').value = '';
   $('#tileDelete').hidden = isNew;
   updateTileForm();
@@ -792,7 +797,7 @@ tf.addEventListener('submit', e => {
   } else {
     try { ACTIONS[t.action].build(t.param); } catch (err) { e.preventDefault(); return toast(err.message, true); }
     if (!t.label) t.label = ACTIONS[t.action].name;
-    delete t.url;
+    delete t.url; delete t.openIn;
   }
   if (index < 0) list.push({ id: uid(), ...t });
   else list[index] = { ...list[index], ...t };
@@ -1074,7 +1079,7 @@ function syncDesignForm() {
   df.bgDim.value = d.bgDim;
   df.bgDim.disabled = !d.bgImage;
   $('#bgClear').disabled = !d.bgImage;
-  for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles']]) {
+  for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn']]) {
     $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
   }
   df.animations.checked = d.animations;
@@ -1083,6 +1088,7 @@ function syncDesignForm() {
 function changeDesign(patch) {
   Object.assign(state.design, patch);
   applyDesign(state.design);
+  if ('openIn' in patch) render(); // Shortcuts übernehmen die neue Öffnen-Einstellung
   syncDesignForm();
 }
 
@@ -1091,7 +1097,7 @@ $('#themes').append(...THEMES.map(([id, name, preview, colors]) => h('button', {
 }, h('span', { class: 'sw', style: `background:${preview}` }, colors.map(c => h('span', { style: `background:${c}` }))),
   h('span', { class: 'nm' }, name))));
 
-for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles']]) {
+for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn']]) {
   $(seg).addEventListener('click', e => {
     const b = e.target.closest('button[data-value]');
     if (b) changeDesign({ [key]: b.dataset.value });
@@ -1127,6 +1133,7 @@ designDlg.addEventListener('close', () => {
   } else {
     state.design = designBefore;
     applyDesign(state.design);
+    render();
   }
   designDlg.returnValue = '';
 });

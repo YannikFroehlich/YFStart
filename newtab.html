@@ -15,8 +15,8 @@
 
 <header class="topbar">
   <div id="update" class="update glass" hidden></div>
-  <a href="https://mail.google.com/mail/" class="toplink">Gmail</a>
-  <a href="https://www.google.com/imghp" class="toplink">Bilder</a>
+  <a href="https://mail.google.com/mail/" class="toplink" data-follow>Gmail</a>
+  <a href="https://www.google.com/imghp" class="toplink" data-follow>Bilder</a>
   <div class="apps-wrap">
     <button id="appsBtn" class="iconbtn" title="Google-Apps" aria-haspopup="true" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M6 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
@@ -28,7 +28,7 @@
 
 <main>
   <div id="clock" class="clock"></div>
-  <a id="weather" class="weather" hidden></a>
+  <a id="weather" class="weather" data-follow hidden></a>
 
   <form id="searchForm" class="search" autocomplete="off" role="search">
     <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
@@ -40,7 +40,7 @@
   <div id="editbar" class="editbar" hidden>
     <button id="addShortcut" class="btn"><i class="fa-solid fa-plus"></i> Shortcut</button>
     <button id="addPc" class="btn"><i class="fa-solid fa-desktop"></i> PC (YFRemote)</button>
-    <button id="designBtn" class="btn"><i class="fa-solid fa-palette"></i> Design</button>
+    <button id="designBtn" class="btn"><i class="fa-solid fa-sliders"></i> Einstellungen</button>
     <button id="weatherBtn" class="btn"><i class="fa-solid fa-cloud-sun"></i> Wetter</button>
     <button id="exportBtn" class="btn"><i class="fa-solid fa-file-export"></i> Exportieren</button>
     <button id="importBtn" class="btn"><i class="fa-solid fa-file-import"></i> Importieren</button>
@@ -64,6 +64,13 @@
         <label>Text <input name="label" maxlength="40"></label>
 
         <label data-kind="link">URL <input name="url" placeholder="https://…"></label>
+        <label data-kind="link">Öffnen in
+          <select name="openIn">
+            <option value="">Wie in den Einstellungen</option>
+            <option value="same">Gleichem Tab</option>
+            <option value="new">Neuem Tab</option>
+          </select>
+        </label>
 
         <label data-kind="remote">Aktion
           <select name="action"></select>
@@ -158,7 +165,7 @@
 <!-- Design: Änderungen wirken sofort, Abbrechen nimmt sie zurück -->
 <dialog id="designDlg">
   <form method="dialog" id="designForm">
-    <h2>Design</h2>
+    <h2>Einstellungen</h2>
     <div class="themes" id="themes"></div>
 
     <h3>Akzentfarbe</h3>
@@ -189,6 +196,18 @@
     <div class="seg" id="tilesSeg" role="group" aria-label="Kachelstil">
       <button type="button" data-value="plain">Schlicht</button>
       <button type="button" data-value="cards">Karten</button>
+    </div>
+
+    <h3>Öffnen</h3>
+    <p class="icon-hint">Shortcuts, Google-Apps, Gmail, Bilder und Wetter</p>
+    <div class="seg" id="openSeg" role="group" aria-label="Links öffnen in">
+      <button type="button" data-value="same"><i class="fa-regular fa-window-maximize"></i> Gleicher Tab</button>
+      <button type="button" data-value="new"><i class="fa-solid fa-arrow-up-right-from-square"></i> Neuer Tab</button>
+    </div>
+    <p class="icon-hint">YFRemote-Bildschirm (Strg+Klick öffnet immer einen neuen Tab)</p>
+    <div class="seg" id="screenSeg" role="group" aria-label="Bildschirm öffnen in">
+      <button type="button" data-value="same"><i class="fa-regular fa-window-maximize"></i> Gleicher Tab</button>
+      <button type="button" data-value="new"><i class="fa-solid fa-arrow-up-right-from-square"></i> Neuer Tab</button>
     </div>
 
     <h3>Bewegung</h3>

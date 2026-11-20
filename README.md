@@ -6,7 +6,9 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Wetter für einen Ort unter der Uhr, ein- und ausschaltbar (⚙ → **Wetter**)
 - Shortcuts mit eigenem Text und Farben, sortierbar per Ziehen. Als Icon: Icon der Website,
   ein Font-Awesome-Icon (passende werden vorgeschlagen, Marken mit ihrer Farbe), Emoji/Text oder ein Bild
-- Designs (⚙ → **Design**): System, Hell, Dunkel, Mitternacht, Papier und die Verläufe Aurora,
+- Links und den YFRemote-Bildschirm wahlweise im gleichen oder in einem neuen Tab öffnen
+  (⚙ → **Einstellungen**, für einzelne Shortcuts auch im Shortcut selbst)
+- Designs (⚙ → **Einstellungen**): System, Hell, Dunkel, Mitternacht, Papier und die Verläufe Aurora,
   Ozean, Abendrot und Wald; eigene Akzentfarbe, eigenes Hintergrundbild, Kachelgröße, -form und -stil,
   Animationen an/aus
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
