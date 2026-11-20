@@ -372,6 +372,30 @@ function render() {
 // laufen diese Anfragen über yfremote-bridge.js in einem unsichtbaren iframe auf <PC>/health.
 const bridges = new Map(); // PC-Adresse -> Promise<iframe>
 
+// Zugriff auf einen PC verlangt die Extension erst beim ersten Koppeln/Steuern
+// (optional_host_permissions) statt bei der Installation für alle Webseiten. Mit dem Zugriff werden
+// die beiden Scripts für diesen PC angemeldet. Braucht einen Klick des Nutzers, wenn Chrome fragen muss.
+const hostPattern = url => { const u = new URL(url); return `${u.protocol}//${u.hostname}/*`; };
+
+async function ensureHostAccess(url) {
+  if (!hasExt) return;
+  const pattern = hostPattern(url);
+  const granted = await chrome.permissions.contains({ origins: [pattern] })
+    || await chrome.permissions.request({ origins: [pattern] });
+  if (!granted) throw new Error('Ohne Zugriff auf den PC geht es nicht – bitte in Chrome erlauben.');
+  await registerForHost('yfstart-bridge', pattern.replace(/\*$/, 'health'),
+    { js: ['yfremote-bridge.js'], allFrames: true, runAt: 'document_start' });
+  // fullscreen-flag.js wirkt nur, wenn background.js den Client mit #yfstart-fullscreen öffnet.
+  await registerForHost('yfstart-fullscreen', pattern, { js: ['fullscreen-flag.js'], runAt: 'document_start', world: 'MAIN' });
+}
+
+async function registerForHost(id, match, options) {
+  const [existing] = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+  if (existing?.matches.includes(match)) return;
+  const script = { id, matches: [...(existing?.matches ?? []), match], ...options };
+  await (existing ? chrome.scripting.updateContentScripts([script]) : chrome.scripting.registerContentScripts([script]));
+}
+
 function bridgeFrame(origin) {
   if (!bridges.has(origin)) {
     bridges.set(origin, new Promise(resolve => {
@@ -384,6 +408,7 @@ function bridgeFrame(origin) {
 }
 
 async function callBridge(origin, payload, timeoutMs = 8000) {
+  await ensureHostAccess(origin);
   const frame = await bridgeFrame(origin);
   const id = uid();
   return new Promise((resolve, reject) => {
@@ -408,6 +433,10 @@ async function callBridge(origin, payload, timeoutMs = 8000) {
 async function checkHealth() {
   await Promise.all(state.pcs.map(async pc => {
     const dot = document.querySelector(`.dot[data-pc="${pc.id}"]`);
+    if (hasExt && !await chrome.permissions.contains({ origins: [hostPattern(pc.url)] })) {
+      if (dot) Object.assign(dot, { className: 'dot', title: 'Zugriff noch nicht erlaubt – einmal auf einen Button klicken' });
+      return;
+    }
     let online = false;
     try {
       const res = await fetch(new URL('/health', pc.url), { cache: 'no-store', signal: AbortSignal.timeout(2500) });
@@ -424,8 +453,13 @@ function sendAction(pc, message) {
 }
 
 // Erledigt background.js: YFRemote-Client öffnen und auf den Bildschirm-Tab schalten.
-function openScreen(pc) {
+async function openScreen(pc) {
   if (!hasExt) return void (location.href = pc.url + '/');
+  try {
+    await ensureHostAccess(pc.url);
+  } catch (err) {
+    return toast(err.message, true);
+  }
   chrome.runtime.sendMessage({ type: 'openScreen', url: pc.url + '/', token: pc.token });
 }
 

@@ -27,8 +27,8 @@ async function exitWindowFullscreen(windowId) {
   await chrome.windows.update(windowId, { state: previous });
 }
 
+// Zugriff auf den PC und fullscreen-flag.js hat newtab.js (ensureHostAccess) vorher eingerichtet.
 async function openScreen(tabId, url, token) {
-  await allowScriptFullscreen(url);
   let loaded = tabLoaded(tabId);
   const tab = await chrome.tabs.update(tabId, { url: url + '#yfstart-fullscreen' });
   // Höchstens zweimal: beim ersten Mal legt showScreenTab evtl. die Kopplung ab und lädt neu.
@@ -39,22 +39,6 @@ async function openScreen(tabId, url, token) {
     if (result !== 'reload') break;
   }
   await enterWindowFullscreen(tab.windowId);
-}
-
-// fullscreen-flag.js früh in die Seiten dieses PCs laden (wirkt nur mit #yfstart-fullscreen).
-async function allowScriptFullscreen(url) {
-  const { protocol, hostname } = new URL(url);
-  const match = `${protocol}//${hostname}/*`;
-  const [existing] = await chrome.scripting.getRegisteredContentScripts({ ids: ['yfstart-fullscreen'] });
-  if (existing?.matches.includes(match)) return;
-  const script = {
-    id: 'yfstart-fullscreen',
-    matches: [...(existing?.matches ?? []), match],
-    js: ['fullscreen-flag.js'],
-    runAt: 'document_start',
-    world: 'MAIN',
-  };
-  await (existing ? chrome.scripting.updateContentScripts([script]) : chrome.scripting.registerContentScripts([script]));
 }
 
 function tabLoaded(tabId) {

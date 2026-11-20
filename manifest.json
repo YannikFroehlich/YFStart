@@ -1,18 +1,12 @@
 {
   "manifest_version": 3,
   "name": "YFStart",
-  "version": "1.2.0",
-  "description": "Eigene Neuer-Tab-Seite: Google-Suche, Google-Apps, Shortcuts und YFRemote-Schnellzugriff.",
+  "version": "1.3.0",
+  "description": "Neuer Tab mit Google-Suche, Google-Apps, eigenen Shortcuts und Schnellzugriff auf YFRemote-PCs.",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "chrome_url_overrides": { "newtab": "newtab.html" },
   "background": { "service_worker": "background.js" },
-  "permissions": ["storage", "unlimitedStorage", "scripting"],
-  "host_permissions": ["http://*/*", "https://*/*"],
-  "content_scripts": [
-    {
-      "matches": ["http://*/health", "https://*/health"],
-      "js": ["yfremote-bridge.js"],
-      "all_frames": true,
-      "run_at": "document_start"
-    }
-  ]
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["https://suggestqueries.google.com/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
 }
