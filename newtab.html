@@ -26,6 +26,8 @@
   <button id="editBtn" class="iconbtn" title="Bearbeiten"><i class="fa-solid fa-gear"></i></button>
 </header>
 
+<div class="layout">
+<aside id="leftGroups" class="side" aria-label="Gruppen links"></aside>
 <main>
   <div id="clock" class="clock"></div>
   <a id="weather" class="weather" data-follow hidden></a>
@@ -39,6 +41,7 @@
 
   <div id="editbar" class="editbar" hidden>
     <button id="addShortcut" class="btn"><i class="fa-solid fa-plus"></i> Shortcut</button>
+    <button id="addGroup" class="btn"><i class="fa-solid fa-table-columns"></i> Gruppe</button>
     <button id="addPc" class="btn"><i class="fa-solid fa-desktop"></i> PC (YFRemote)</button>
     <button id="designBtn" class="btn"><i class="fa-solid fa-sliders"></i> Einstellungen</button>
     <button id="weatherBtn" class="btn"><i class="fa-solid fa-cloud-sun"></i> Wetter</button>
@@ -51,6 +54,8 @@
   <section id="shortcuts" class="grid" aria-label="Shortcuts"></section>
   <section id="pcs" class="pcs" aria-label="YFRemote"></section>
 </main>
+<aside id="rightGroups" class="side" aria-label="Gruppen rechts"></aside>
+</div>
 
 <div id="toast" class="toast" role="status" hidden></div>
 
@@ -64,6 +69,9 @@
         <label>Text <input name="label" maxlength="40"></label>
 
         <label data-kind="link">URL <input name="url" placeholder="https://…"></label>
+        <label data-kind="link">Bereich
+          <select name="group"></select>
+        </label>
         <label data-kind="link">Öffnen in
           <select name="openIn">
             <option value="">Wie in den Einstellungen</option>
@@ -137,6 +145,25 @@
     <p id="pairStatus" class="muted"></p>
     <div class="dlg-actions">
       <button type="button" id="pcDelete" class="btn danger"><i class="fa-solid fa-trash"></i> Entfernen</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Verknüpfungsgruppe links oder rechts -->
+<dialog id="groupDlg">
+  <form method="dialog" id="groupForm">
+    <h2 id="groupTitle">Gruppe</h2>
+    <label>Name <input name="name" required maxlength="40" placeholder="z. B. Meine Websites"></label>
+    <p class="icon-hint">Seite</p>
+    <div class="seg" id="sideSeg" role="group" aria-label="Seite">
+      <button type="button" data-value="left"><i class="fa-solid fa-arrow-left"></i> Links</button>
+      <button type="button" data-value="right">Rechts <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="groupDelete" class="btn danger"><i class="fa-solid fa-trash"></i> Löschen</button>
       <span class="spacer"></span>
       <button type="button" class="btn" data-close>Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>

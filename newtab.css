@@ -141,7 +141,59 @@ body.editing #editBtn i { transform: rotate(90deg); }
 .app:hover img { transform: scale(1.08); }
 
 /* ---------- Mitte ---------- */
-main { max-width: 920px; margin: 0 auto; padding: 4vh 16px 60px; }
+/* Drei Spalten: Gruppen links, Mitte, Gruppen rechts. Beide Seiten gleich breit, damit die Mitte
+   mittig bleibt. Unter 1150 px rutschen die Gruppen unter die Mitte. */
+.layout {
+  display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 920px) minmax(200px, 1fr);
+  gap: 24px; padding: 0 20px; align-items: start;
+}
+main { min-width: 0; padding: 4vh 0 60px; }
+.side { display: grid; gap: 14px; padding-top: 4vh; align-content: start; }
+#leftGroups { justify-items: start; }
+#rightGroups { justify-items: end; }
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 0 16px; }
+  main { order: -1; padding-bottom: 20px; }
+  .side { justify-items: stretch !important; align-items: start; padding-top: 0; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .side:empty { display: none; }
+  .side .group { max-width: none; }
+}
+
+/* Gruppen */
+.group {
+  width: 100%; max-width: 270px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  padding: 8px; backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+}
+.group-head { display: flex; align-items: center; gap: 4px; }
+.group-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; cursor: pointer;
+  padding: 6px 8px; border-radius: 10px; font-weight: 600; text-align: left;
+}
+.group-toggle:hover { background: var(--surface-2); }
+.group-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-toggle i { font-size: 11px; color: var(--muted); transition: transform .2s; }
+.group-toggle[aria-expanded="false"] i { transform: rotate(-90deg); }
+.iconbtn.small { width: 30px; height: 30px; font-size: 13px; flex: none; }
+.group-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.link-row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 11px; text-decoration: none;
+  border: 1px dashed transparent; background: none; cursor: pointer; text-align: left; width: 100%;
+  transition: background-color .15s, transform .15s;
+}
+.link-row:hover { background: var(--surface-2); transform: translateX(3px); }
+.link-row .ic {
+  width: 30px; height: 30px; flex: none; border-radius: calc(30px * .28); display: grid; place-items: center;
+  overflow: hidden; font-size: 14px; font-weight: 600; box-shadow: var(--shadow);
+}
+html[data-shape="round"] .link-row .ic { border-radius: 50%; }
+html[data-shape="square"] .link-row .ic { border-radius: 4px; }
+.link-row .ic img { width: 62%; height: 62%; object-fit: contain; }
+.link-row .ic img.fill { width: 100%; height: 100%; object-fit: cover; }
+.link-row .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-row.add .ic { background: var(--surface-2); color: var(--muted); box-shadow: none; border: 1px dashed var(--border); }
+body.editing .link-row:not(.add) { border-color: var(--border); }
+.link-row.dragging { opacity: .3; }
+.group .empty { font-size: 13px; padding: 6px 8px; margin: 0; text-align: left; }
 .clock { text-align: center; font-size: 60px; font-weight: 300; letter-spacing: 1px; text-shadow: 0 2px 16px rgba(0, 0, 0, .12); }
 .clock small { display: block; font-size: 15px; color: var(--muted); letter-spacing: 0; text-shadow: none; }
 
@@ -333,7 +385,7 @@ input[type=checkbox], input[type=range], input[type=radio] { accent-color: var(-
 body.intro .clock { animation: rise .5s ease both; }
 body.intro .weather { animation: rise .5s .05s ease both; }
 body.intro .search { animation: rise .5s .1s ease both; }
-body.intro .tile, body.intro .pc { animation: rise .45s calc(.15s + var(--i, 0) * 30ms) ease both; }
+body.intro .tile, body.intro .pc, body.intro .group { animation: rise .45s calc(.15s + var(--i, 0) * 30ms) ease both; }
 .tile:hover { transform: translateY(-3px); }
 .tile:hover .ic { box-shadow: var(--shadow-lift); }
 .tile:active .ic { transform: scale(.94); }

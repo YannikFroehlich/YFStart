@@ -104,7 +104,7 @@ const DEFAULT_DESIGN = {
   openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
 };
 const state = {
-  shortcuts: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
+  shortcuts: [], groups: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
 };
 let editing = false;
 const $ = sel => document.querySelector(sel);
@@ -147,7 +147,8 @@ function applyDesign(d) {
 try { applyDesign({ ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
 
 async function load() {
-  const d = await storage.get(['shortcuts', 'pcs', 'weather', 'design']);
+  const d = await storage.get(['shortcuts', 'groups', 'pcs', 'weather', 'design']);
+  state.groups = Array.isArray(d.groups) ? d.groups : [];
   if (d.weather) state.weather = d.weather;
   state.design = { ...DEFAULT_DESIGN, ...d.design };
   applyDesign(state.design);
@@ -158,7 +159,9 @@ async function load() {
 }
 
 async function save() {
-  await storage.set({ shortcuts: state.shortcuts, pcs: state.pcs, weather: state.weather, design: state.design });
+  await storage.set({
+    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs, weather: state.weather, design: state.design,
+  });
   try { localStorage.setItem('yfstart.design', JSON.stringify(state.design)); } catch { /* Bild zu groß: dann ohne Sofort-Kopie */ }
 }
 
@@ -319,6 +322,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') setApps(fals
 //   "https://…"   Bild-URL; ein hochgeladenes Bild steht in t.image
 //   sonst         Emoji oder kurzer Text
 const fa = cls => h('i', { class: cls, 'aria-hidden': 'true' });
+const linkTarget = t => ((t.openIn || state.design.openIn) === 'new' ? '_blank' : null);
 
 function paintIcon(ic, t, kind) {
   const color = t.color || '#ffffff';
@@ -344,7 +348,7 @@ function tileEl(t, kind) {
   const ic = h('span', { class: 'ic' });
   paintIcon(ic, t, kind);
   const el = kind === 'link'
-    ? h('a', { class: 'tile', href: t.url, title: t.url, target: (t.openIn || state.design.openIn) === 'new' ? '_blank' : null })
+    ? h('a', { class: 'tile', href: t.url, title: t.url, target: linkTarget(t) })
     : h('button', { class: 'tile', type: 'button', title: ACTIONS[t.action]?.name });
   el.append(ic, h('span', { class: 'lbl' }, t.label || ''));
   return el;
@@ -421,10 +425,55 @@ function renderPcs() {
   checkHealth();
 }
 
+// ---------- Gruppen ----------
+// Eigene Verknüpfungsbereiche links und rechts neben der Mitte, als kompakte Liste.
+function linkRow(s) {
+  const ic = h('span', { class: 'ic' });
+  paintIcon(ic, s, 'link');
+  return h('a', { class: 'link-row', href: s.url, title: s.url, target: linkTarget(s) }, ic, h('span', { class: 'lbl' }, s.label || ''));
+}
+
+function groupEl(g, index) {
+  const rows = g.shortcuts.map((s, i) => {
+    const el = linkRow(s);
+    if (editing) {
+      el.addEventListener('click', e => { e.preventDefault(); openTileEditor('link', g.shortcuts, i); });
+      sortable(el, g.shortcuts, i);
+    }
+    return el;
+  });
+  if (editing) {
+    rows.push(h('button', { class: 'link-row add', type: 'button', onclick: () => openTileEditor('link', g.shortcuts, -1) },
+      h('span', { class: 'ic' }, fa('fa-solid fa-plus')), h('span', { class: 'lbl' }, 'Hinzufügen')));
+  }
+  const open = editing || !g.collapsed;
+  const el = h('section', { class: 'group' },
+    h('div', { class: 'group-head' },
+      h('button', {
+        class: 'group-toggle', type: 'button', 'aria-expanded': open, title: open ? 'Einklappen' : 'Ausklappen',
+        onclick: () => { g.collapsed = !g.collapsed; save(); renderGroups(); },
+      }, fa('fa-solid fa-chevron-down'), h('span', {}, g.name)),
+      editing && h('button', { class: 'iconbtn small', type: 'button', title: 'Gruppe bearbeiten', onclick: () => openGroupEditor(g) },
+        fa('fa-solid fa-pen')),
+    ),
+    open && h('div', { class: 'group-list' },
+      rows.length ? rows : h('p', { class: 'empty' }, 'Noch leer – ⚙ drücken und „Hinzufügen“ wählen.')),
+  );
+  el.style.setProperty('--i', index);
+  return el;
+}
+
+function renderGroups() {
+  for (const side of ['left', 'right']) {
+    $(`#${side}Groups`).replaceChildren(...state.groups.filter(g => g.side === side).map(groupEl));
+  }
+}
+
 function render() {
   document.body.classList.toggle('editing', editing);
   $('#editbar').hidden = !editing;
   renderShortcuts();
+  renderGroups();
   renderPcs();
 }
 
@@ -612,6 +661,10 @@ function openTileEditor(kind, list, index, pc) {
   tf.fg.value = t.fg || '#ffffff';
   tf.autoFg.checked = t.autoFg !== false;
   tf.openIn.value = t.openIn || '';
+  // Bereich: Hauptbereich oder eine der Gruppen; beim Speichern wird die Verknüpfung dorthin verschoben.
+  tf.group.replaceChildren(h('option', { value: '' }, 'Hauptbereich'),
+    ...state.groups.map(g => h('option', { value: g.id }, `${g.name} (${g.side === 'left' ? 'links' : 'rechts'})`)));
+  tf.group.value = state.groups.find(g => g.shortcuts === list)?.id ?? '';
   $('#faSearch').value = '';
   $('#tileDelete').hidden = isNew;
   updateTileForm();
@@ -799,8 +852,13 @@ tf.addEventListener('submit', e => {
     if (!t.label) t.label = ACTIONS[t.action].name;
     delete t.url; delete t.openIn;
   }
-  if (index < 0) list.push({ id: uid(), ...t });
-  else list[index] = { ...list[index], ...t };
+  const target = kind === 'link' ? (state.groups.find(g => g.id === tf.group.value)?.shortcuts ?? state.shortcuts) : list;
+  const item = index < 0 ? { id: uid(), ...t } : { ...list[index], ...t };
+  if (target === list && index >= 0) list[index] = item;
+  else {
+    if (index >= 0) list.splice(index, 1);
+    target.push(item);
+  }
   save();
   render();
 });
@@ -894,7 +952,7 @@ $('#addPc').addEventListener('click', () => openPcEditor(-1));
 $('#exportBtn').addEventListener('click', () => {
   // Ohne Kopplungs-Tokens: wer die Datei hat, soll die PCs nicht steuern können.
   const data = {
-    shortcuts: state.shortcuts, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather, design: state.design,
+    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather, design: state.design,
   };
   const a = h('a', {
     href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })),
@@ -914,6 +972,7 @@ $('#importFile').addEventListener('change', async e => {
     if (!Array.isArray(data.shortcuts) || !Array.isArray(data.pcs)) throw new Error();
     if (!confirm('Aktuelle Shortcuts und PCs durch die Datei ersetzen?')) return;
     state.shortcuts = data.shortcuts;
+    state.groups = Array.isArray(data.groups) ? data.groups : [];
     state.pcs = data.pcs.map(pc => ({ ...pc, token: null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [] }));
     if (data.weather) state.weather = data.weather;
     if (data.design) applyDesign(state.design = { ...DEFAULT_DESIGN, ...data.design });
@@ -1136,4 +1195,49 @@ designDlg.addEventListener('close', () => {
     render();
   }
   designDlg.returnValue = '';
+});
+
+// ---------- Gruppen-Dialog ----------
+const groupDlg = $('#groupDlg');
+const gf = $('#groupForm');
+let groupCtx = null; // { group (null = neu), side }
+
+function syncSideSeg() {
+  $('#sideSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === groupCtx.side));
+}
+
+function openGroupEditor(group) {
+  groupCtx = { group, side: group?.side ?? 'right' };
+  $('#groupTitle').textContent = group ? 'Gruppe bearbeiten' : 'Neue Gruppe';
+  gf.name.value = group?.name ?? '';
+  $('#groupDelete').hidden = !group;
+  syncSideSeg();
+  groupDlg.showModal();
+  gf.name.focus();
+}
+
+$('#addGroup').addEventListener('click', () => openGroupEditor(null));
+$('#sideSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-value]');
+  if (!b) return;
+  groupCtx.side = b.dataset.value;
+  syncSideSeg();
+});
+gf.addEventListener('submit', e => {
+  if (e.submitter?.value !== 'ok') return;
+  const name = gf.name.value.trim();
+  if (!name) { e.preventDefault(); return; }
+  if (groupCtx.group) Object.assign(groupCtx.group, { name, side: groupCtx.side });
+  else state.groups.push({ id: uid(), name, side: groupCtx.side, collapsed: false, shortcuts: [] });
+  save();
+  render();
+});
+$('#groupDelete').addEventListener('click', () => {
+  const { group } = groupCtx;
+  const n = group.shortcuts.length;
+  if (!confirm(`Gruppe „${group.name}“${n ? ` mit ${n} Verknüpfung${n === 1 ? '' : 'en'}` : ''} löschen?`)) return;
+  state.groups.splice(state.groups.indexOf(group), 1);
+  groupDlg.close();
+  save();
+  render();
 });
