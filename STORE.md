@@ -62,8 +62,9 @@ Neuer Tab mit Google-Suche, Google-Apps, eigenen Shortcuts und Schnellzugriff au
 
 **Kategorie:** Tools · **Sprache:** Deutsch
 
-**Datenschutzerklärung (URL):** Der Text steht in `PRIVACY.md`. Der Store verlangt eine öffentlich
-erreichbare Adresse, z. B. die Datei in einem öffentlichen GitHub-Repo.
+**Datenschutzerklärung (URL):** <https://github.com/YannikFroehlich/YFStart/blob/main/PRIVACY.md>
+
+**Startseite / Support (URL):** <https://github.com/YannikFroehlich/YFStart>
 
 ### Tab „Datenschutz“
 
