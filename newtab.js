@@ -662,7 +662,7 @@ function renderPcs() {
       h('div', { class: 'pc-media', 'data-pc': pc.id }),
       h('div', { class: 'pc-uploads', 'data-pc': pc.id }),
       !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – ⚙ → „Bearbeiten“, dann mit der PIN aus dem YFRemote-Tray koppeln.'),
-      buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Keine Buttons – ⚙ → „Hinzufügen“'),
+      buttons.length > 0 && h('div', { class: 'grid' }, buttons), // ohne Buttons kein Hinweis; im Bearbeiten-Modus steht dort „Hinzufügen“
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
     vtName(card, 'pc-' + pc.id);
