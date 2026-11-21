@@ -311,14 +311,17 @@ html[data-shape="round"] .pc { --ic-radius: 50%; }
 html[data-shape="square"] .pc { --ic-radius: 4px; }
 .pc.all { grid-column: 1 / -1; }
 .pc.all .pc-head > i { color: var(--accent); }
-.pc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 30px; }
-.pc-head h3 { margin: 0; font-size: 14.5px; font-weight: 600; white-space: nowrap; }
-.pc-head .host { color: var(--muted); font-size: 11.5px; }
+/* Zeile 1: Name und Knöpfe, bricht nie um. Zeile 2 (.pc-meta): Chips für Auslastung, Akku, Timer. */
+.pc-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.pc-head h3 { margin: 0; min-width: 0; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-head .host { flex: none; color: var(--muted); font-size: 11.5px; }
+.pc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: -2px; }
+.pc-meta:not(:has(> :not(:empty))) { display: none; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; position: relative; }
 .dot.on { background: var(--ok); }
 .dot.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ok); animation: ping 2.4s ease-out infinite; }
 .dot.off { background: var(--danger); }
-.pc-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.pc-actions { flex: none; display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .pc-act {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; min-width: 30px; padding: 0 8px;
   border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted);
@@ -329,7 +332,7 @@ html[data-shape="square"] .pc { --ic-radius: 4px; }
 .pc-act:active { transform: scale(.95); }
 
 /* Auslastung: kleine Chips mit Balken im Hintergrund, über 85 % rot */
-.pc-stats { display: flex; gap: 4px; }
+.pc-stats { display: flex; flex-wrap: wrap; gap: 4px; }
 .pc-stats:empty, .pc-timer:empty { display: none; }
 @property --v { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
 .meter {

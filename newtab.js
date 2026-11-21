@@ -643,10 +643,8 @@ function renderPcs() {
     const card = h('div', { class: 'pc' },
       h('div', { class: 'pc-head' },
         h('span', { class: 'dot', 'data-pc': pc.id, title: 'Status wird geprüft…' }),
-        h('h3', {}, pc.name),
+        h('h3', { title: pc.name }, pc.name),
         h('span', { class: 'host', title: pc.url }, new URL(pc.url).host),
-        h('div', { class: 'pc-stats', 'data-pc': pc.id }),
-        h('div', { class: 'pc-timer', 'data-pc': pc.id }),
         h('div', { class: 'pc-actions' },
           pc.token && !editing && state.design.pcFiles && h('button', {
             class: 'pc-act', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
@@ -657,10 +655,14 @@ function renderPcs() {
           editing && h('button', { class: 'pc-act main', type: 'button', onclick: () => openPcEditor(pcIndex) },
             fa('fa-solid fa-pen'), 'Bearbeiten')),
       ),
+      // Zweite Zeile: Auslastung, Akku, Timer (verschwindet, wenn alles leer ist)
+      h('div', { class: 'pc-meta' },
+        h('div', { class: 'pc-stats', 'data-pc': pc.id }),
+        h('div', { class: 'pc-timer', 'data-pc': pc.id })),
       h('div', { class: 'pc-media', 'data-pc': pc.id }),
       h('div', { class: 'pc-uploads', 'data-pc': pc.id }),
       !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – ⚙ → „Bearbeiten“, dann mit der PIN aus dem YFRemote-Tray koppeln.'),
-      buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
+      buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Keine Buttons – ⚙ → „Hinzufügen“'),
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
     vtName(card, 'pc-' + pc.id);
@@ -820,9 +822,9 @@ function paintTimer(pc) {
     h('button', { type: 'button', title: 'Timer abbrechen', onclick: () => setTimer(pc, 0) }, fa('fa-solid fa-xmark')));
 }
 
-// Ein Wert mit Balken im Hintergrund; über 85 % rot.
-function meter(icon, label, percent, title) {
-  const el = h('span', { class: 'meter' + (percent > 85 ? ' high' : ''), title }, fa('fa-solid ' + icon), label);
+// Ein Wert mit Balken im Hintergrund; alert (Standard: über 85 %) färbt ihn rot.
+function meter(icon, label, percent, title, alert = percent > 85) {
+  const el = h('span', { class: 'meter' + (alert ? ' high' : ''), title }, fa('fa-solid ' + icon), label);
   el.style.setProperty('--v', Math.max(0, Math.min(100, percent)) + '%');
   return el;
 }
@@ -837,8 +839,12 @@ function paintStats(el, st) {
     st.memoryTotalMb > 0 && meter('fa-memory', `RAM ${Math.round(st.memoryUsedMb / st.memoryTotalMb * 100)} %`,
       st.memoryUsedMb / st.memoryTotalMb * 100, `Arbeitsspeicher: ${gb(st.memoryUsedMb)} von ${gb(st.memoryTotalMb)} GB`),
     st.gpuLoad != null && meter('fa-gauge-high', `GPU ${st.gpuLoad} %`, st.gpuLoad, `Grafikkarte${temp(st.gpuTemperature)}`),
-    st.batteryLevel != null && meter(st.batteryCharging ? 'fa-plug-circle-bolt' : 'fa-battery-half',
-      `Akku ${st.batteryLevel} %`, st.batteryLevel, st.batteryCharging ? 'Akku, lädt' : 'Akku'),
+    // Akku: rot erst, wenn er fast leer ist und nicht lädt
+    st.batteryLevel != null && meter(
+      st.batteryCharging ? 'fa-plug-circle-bolt'
+        : ['fa-battery-empty', 'fa-battery-quarter', 'fa-battery-half', 'fa-battery-three-quarters', 'fa-battery-full'][Math.round(st.batteryLevel / 25)],
+      `Akku ${st.batteryLevel} %`, st.batteryLevel, st.batteryCharging ? 'Akku, lädt' : 'Akku',
+      st.batteryLevel <= 20 && !st.batteryCharging),
   ].filter(Boolean));
 }
 
@@ -1131,11 +1137,17 @@ async function ensureHostAccess(url) {
   await registerForHost('yfstart-fullscreen', pattern, { js: ['fullscreen-flag.js'], runAt: 'document_start', world: 'MAIN' });
 }
 
-async function registerForHost(id, match, options) {
-  const [existing] = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-  if (existing?.matches.includes(match)) return;
-  const script = { id, matches: [...(existing?.matches ?? []), match], ...options };
-  await (existing ? chrome.scripting.updateContentScripts([script]) : chrome.scripting.registerContentScripts([script]));
+// Nacheinander: Zwei PCs gleichzeitig lesen sonst beide die alte Liste, und der zweite überschreibt den ersten.
+let registering = Promise.resolve();
+function registerForHost(id, match, options) {
+  const run = registering.then(async () => {
+    const [existing] = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (existing?.matches.includes(match)) return;
+    const script = { id, matches: [...(existing?.matches ?? []), match], ...options };
+    await (existing ? chrome.scripting.updateContentScripts([script]) : chrome.scripting.registerContentScripts([script]));
+  });
+  registering = run.catch(() => {});
+  return run;
 }
 
 function bridgeFrame(origin) {
