@@ -577,6 +577,7 @@ function renderShortcuts() {
   const tiles = state.shortcuts.map((s, i) => {
     const el = vtName(tileEl(s, 'link'), s.id);
     el.style.setProperty('--i', i); // Reihenfolge beim Einblenden
+    if (i < 9) el.title = `${s.url}  (Taste ${i + 1})`;
     if (editing) {
       el.addEventListener('click', e => { e.preventDefault(); openTileEditor('link', state.shortcuts, i); });
       sortable(el, state.shortcuts, i);
@@ -611,29 +612,40 @@ function renderPcs() {
         h('h3', {}, pc.name),
         h('span', { class: 'host' }, new URL(pc.url).host),
         h('span', { class: 'spacer' }),
+        pc.token && !editing && h('button', {
+          class: 'btn small', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
+          onclick: () => pickFiles(pc),
+        }, fa('fa-solid fa-file-arrow-up'), 'Datei'),
         screenBtn,
         editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
           fa('fa-solid fa-pen'), 'PC bearbeiten'),
       ),
       h('div', { class: 'pc-stats', 'data-pc': pc.id }),
+      h('div', { class: 'pc-media', 'data-pc': pc.id }),
+      h('div', { class: 'pc-uploads', 'data-pc': pc.id }),
       !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – über ⚙ → „PC bearbeiten“ mit der PIN aus dem YFRemote-Tray koppeln.'),
       buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
     vtName(card, 'pc-' + pc.id);
     previewOnHover(screenBtn, card, pc);
+    dropFiles(card, pc);
     paintStats(card.querySelector('.pc-stats'), pcStats.get(pc.id));
+    paintMedia(pc);
     return card;
   }));
   checkHealth();
 }
 
-// ---------- Auslastung und Vorschau ----------
+// ---------- Live-Anzeige: Auslastung, Musik, Vorschau ----------
 const pcStats = new Map(); // PC-ID -> letzte systemStats-Nachricht von YFRemote
+const pcMedia = new Map(); // PC-ID -> letzte media-Nachricht (was gerade läuft)
+const pcCovers = new Map(); // PC-ID -> { id, url } Albumcover als Blob-URL
 
-async function watchStats(pc) {
+// Eine offene Verbindung je PC, solange der Tab sichtbar ist (siehe yfremote-bridge.js).
+async function watchPc(pc) {
   if (!pc.token || document.hidden) return;
-  try { await callBridge(pc.url, { op: 'watchStats', token: pc.token }); } catch { /* offline oder ältere YFRemote-Version */ }
+  try { await callBridge(pc.url, { op: 'watch', token: pc.token }); } catch { /* offline */ }
 }
 
 // Ein Wert mit Balken im Hintergrund; über 85 % rot.
@@ -658,19 +670,141 @@ function paintStats(el, st) {
   ].filter(Boolean));
 }
 
+const mmss = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+
+// Was gerade auf dem PC läuft, mit Cover und Zurück/Pause/Weiter. Baut nur neu, wenn sich Titel,
+// Status oder Cover ändern; die Zeitleiste (jede Sekunde) wird nur verschoben.
+function paintMedia(pc) {
+  const el = document.querySelector(`.pc-media[data-pc="${pc.id}"]`);
+  if (!el) return;
+  const m = pcMedia.get(pc.id);
+  if (!m?.title) {
+    delete el.dataset.key;
+    return void el.replaceChildren();
+  }
+  const cover = pcCovers.get(pc.id);
+  const key = [m.title, m.artist, m.playing, cover?.url].join('|');
+  if (el.dataset.key !== key) {
+    el.dataset.key = key;
+    const control = (icon, action, title) => h('button', {
+      class: 'iconbtn small', type: 'button', title,
+      onclick: async e => {
+        const b = e.currentTarget;
+        b.classList.add('busy');
+        try { await sendAction(pc, ACTIONS[action].build()); } catch (err) { toast(`${pc.name}: ${err.message}`, true); }
+        b.classList.remove('busy');
+      },
+    }, fa('fa-solid ' + icon));
+    el.replaceChildren(
+      cover ? h('img', { class: 'cover', src: cover.url, alt: '' }) : h('span', { class: 'cover' }, fa('fa-solid fa-music')),
+      h('span', { class: 'track' },
+        h('b', { title: m.title }, m.title),
+        m.artist && h('small', { title: m.artist }, m.artist),
+        h('span', { class: 'bar' })),
+      control('fa-backward-step', 'prev', 'Vorheriger Titel'),
+      control(m.playing ? 'fa-pause' : 'fa-play', 'playPause', m.playing ? 'Pause' : 'Abspielen'),
+      control('fa-forward-step', 'next', 'Nächster Titel'),
+    );
+  }
+  const bar = el.querySelector('.bar');
+  bar.hidden = !(m.duration > 0);
+  bar.style.setProperty('--p', m.duration > 0 ? Math.min(100, (m.position ?? 0) / m.duration * 100) + '%' : '0%');
+  bar.title = m.duration > 0 ? `${mmss(m.position ?? 0)} / ${mmss(m.duration)}` : '';
+}
+
+async function loadCover(pc, coverId) {
+  const old = pcCovers.get(pc.id);
+  if (old?.id === coverId) return;
+  pcCovers.set(pc.id, { id: coverId, url: null }); // gegen doppeltes Laden
+  let url = null;
+  try {
+    const cover = coverId && await callBridge(pc.url, { op: 'cover', token: pc.token });
+    if (cover) url = URL.createObjectURL(new Blob([cover.data], { type: cover.type }));
+  } catch { /* ohne Cover */ }
+  if (old?.url) URL.revokeObjectURL(old.url);
+  pcCovers.set(pc.id, { id: coverId, url });
+  paintMedia(pc);
+}
+
 addEventListener('message', e => {
-  if (!e.data?.yfstart || !('stats' in e.data)) return;
+  if (!e.data?.yfstart || !('push' in e.data)) return;
   const pc = state.pcs.find(p => new URL(p.url).origin === e.origin);
   if (!pc) return;
-  e.data.stats ? pcStats.set(pc.id, e.data.stats) : pcStats.delete(pc.id);
-  paintStats(document.querySelector(`.pc-stats[data-pc="${pc.id}"]`), e.data.stats);
+  const m = e.data.push;
+  if (!m) { // Verbindung zu
+    pcStats.delete(pc.id);
+    pcMedia.delete(pc.id);
+  } else if (m.type === 'systemStats') {
+    pcStats.set(pc.id, m);
+  } else if (m.type === 'media') {
+    pcMedia.set(pc.id, m);
+    if (m.title) loadCover(pc, m.coverId ?? null);
+  }
+  paintStats(document.querySelector(`.pc-stats[data-pc="${pc.id}"]`), pcStats.get(pc.id));
+  paintMedia(pc);
 });
 
-// Unsichtbarer Tab: Anzeige abmelden, damit die PCs nicht umsonst messen. Wieder sichtbar: checkHealth meldet neu an.
+// Unsichtbarer Tab: Verbindung schließen, damit die PCs nicht umsonst messen. Wieder sichtbar: checkHealth verbindet neu.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) return void checkHealth();
-  for (const pc of state.pcs) if (bridges.has(pc.url)) callBridge(pc.url, { op: 'unwatchStats' }).catch(() => {});
+  for (const pc of state.pcs) if (bridges.has(pc.url)) callBridge(pc.url, { op: 'unwatch' }).catch(() => {});
 });
+
+// ---------- Dateien an einen PC ----------
+// Landet auf dem PC im YFRemote-Empfangsordner (Standard: Dokumente\YFRemote).
+const MAX_UPLOAD = 2 * 1024 ** 3; // Grenze von YFRemote (FileTransfer:MaxFileSizeBytes)
+
+function pickFiles(pc) {
+  const input = h('input', { type: 'file', multiple: true });
+  input.addEventListener('change', () => sendFiles(pc, [...input.files]));
+  input.click();
+}
+
+function dropFiles(card, pc) {
+  if (!pc.token || editing) return;
+  card.dataset.drop = `Loslassen: an ${pc.name} schicken`;
+  const hasFiles = e => e.dataTransfer?.types.includes('Files');
+  card.addEventListener('dragover', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    card.classList.add('drop');
+  });
+  card.addEventListener('dragleave', e => { if (!card.contains(e.relatedTarget)) card.classList.remove('drop'); });
+  card.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    card.classList.remove('drop');
+    sendFiles(pc, [...e.dataTransfer.files]);
+  });
+}
+
+async function sendFiles(pc, files) {
+  for (const file of files) {
+    if (file.size > MAX_UPLOAD) { toast(`${file.name} ist größer als 2 GB.`, true); continue; }
+    const key = uid();
+    const row = h('div', { class: 'upload' }, fa('fa-solid fa-file-arrow-up'), h('span', { class: 'name' }, file.name),
+      h('span', { class: 'pct' }, '0 %'));
+    const slot = () => document.querySelector(`.pc-uploads[data-pc="${pc.id}"]`);
+    slot()?.append(row);
+    const onProgress = e => {
+      if (e.data?.upload !== key) return;
+      const pct = e.data.total ? Math.round(e.data.loaded / e.data.total * 100) : 0;
+      row.style.setProperty('--p', pct + '%');
+      row.querySelector('.pct').textContent = pct + ' %';
+    };
+    addEventListener('message', onProgress);
+    try {
+      const saved = await callBridge(pc.url, { op: 'upload', token: pc.token, file, key }, 3600_000);
+      toast(`${saved} → ${pc.name}`);
+    } catch (err) {
+      toast(`${file.name}: ${err.message}`, true);
+    } finally {
+      removeEventListener('message', onProgress);
+      row.remove();
+    }
+  }
+}
 
 // Vorschaubild beim Überfahren von „Bildschirm“: kurz warten (nicht bei jedem Vorbeifahren), dann
 // etwa jede Sekunde ein neues Standbild, solange die Maus darauf bleibt. Bewusst nicht dauerhaft:
@@ -848,7 +982,7 @@ async function checkHealth() {
       const res = await fetch(new URL('/health', pc.url), { cache: 'no-store', signal: AbortSignal.timeout(2500) });
       online = res.ok;
     } catch { /* offline */ }
-    if (online) watchStats(pc);
+    if (online) watchPc(pc);
     if (!dot) return;
     dot.className = 'dot ' + (online ? 'on' : 'off');
     dot.title = online ? 'Online' : 'Nicht erreichbar';
@@ -1651,4 +1785,27 @@ bf.addEventListener('submit', e => {
   const skipped = picked.length - added.length;
   toast(`${added.length} Verknüpfung${added.length === 1 ? '' : 'en'} übernommen`
     + (skipped ? `, ${skipped} gab es schon.` : '.'));
+});
+
+// ---------- Tastenkürzel ----------
+// /  springt in die Suche, Esc verlässt sie.
+// 1–9 öffnet Verknüpfung 1–9 im Hauptbereich, mit Umschalt im neuen Tab. (Strg+1–9 wechselt in Chrome die Tabs.)
+document.addEventListener('keydown', e => {
+  if (e.defaultPrevented || document.querySelector('dialog[open]')) return;
+  if (e.target === q) {
+    if (e.key === 'Escape' && suggestBox.hidden) q.blur();
+    return;
+  }
+  if (e.target.closest?.('input, textarea, select, [contenteditable]') || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === '/') {
+    e.preventDefault();
+    q.focus();
+    return;
+  }
+  const n = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)?.[1];
+  const s = n && !editing && state.shortcuts[n - 1];
+  if (!s) return;
+  e.preventDefault();
+  if (e.shiftKey || linkTarget(s)) window.open(s.url, '_blank');
+  else location.href = s.url;
 });

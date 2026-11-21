@@ -18,6 +18,11 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild
 - Live-Auslastung pro PC (CPU, RAM, GPU, Akku), solange der Tab sichtbar ist; Vorschaubild des Bildschirms
   beim Überfahren von „Bildschirm“ (YFRemote zeigt am PC an, dass jemand zusieht)
+- Was gerade auf einem PC läuft (Titel, Interpret, Cover, Zeitleiste) mit Zurück, Pause und Weiter
+- Dateien an einen PC schicken: auf die PC-Karte ziehen oder „Datei“ klicken; sie landen im
+  YFRemote-Empfangsordner (Standard: `Dokumente\YFRemote`)
+- Tastenkürzel: `/` springt in die Suche, `1` bis `9` öffnet die Verknüpfungen im Hauptbereich
+  (mit Umschalt im neuen Tab), `Esc` verlässt die Suche
 - Rechner in der Suche: `17*23`, `(2+3)^2`, `wurzel(2)` zeigen das Ergebnis schon beim Tippen, Klick kopiert es
 - Wettervorhersage für sechs Tage beim Überfahren des Wetters
 - Begrüßung nach Tageszeit über der Uhr, optional mit Namen (⚙ → **Einstellungen**)

@@ -542,3 +542,39 @@ html[data-anim="off"] ::backdrop {
 .suggest li.calc { cursor: copy; }
 .suggest li.calc i { color: var(--accent); }
 .suggest li.calc b { font-size: 17px; font-weight: 600; }
+
+/* ---------- PC: Musik und Dateien ---------- */
+.pc-media {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 6px; max-width: 460px;
+  border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.pc-media:empty { display: none; }
+.pc-media .cover {
+  width: 42px; height: 42px; flex: none; border-radius: 8px; object-fit: cover;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--muted);
+}
+.pc-media .track { flex: 1; min-width: 0; display: grid; gap: 1px; font-size: 13px; }
+.pc-media .track b, .pc-media .track small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-media .track b { font-weight: 600; }
+.pc-media .track small { color: var(--muted); }
+.pc-media .bar {
+  --p: 0%; height: 3px; margin-top: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--text) 12%, transparent) var(--p));
+}
+.pc-media .bar[hidden] { display: none; }
+.pc-media .iconbtn.busy { opacity: .5; }
+.pc-uploads:empty { display: none; }
+.pc-uploads { display: grid; gap: 4px; margin: 0 0 8px 19px; max-width: 460px; }
+.upload {
+  --p: 0%; display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  border: 1px solid var(--border); color: var(--muted);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) var(--p), transparent var(--p));
+}
+.upload .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.upload .pct { font-variant-numeric: tabular-nums; }
+.pc.drop { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.pc.drop::after {
+  content: attr(data-drop); position: absolute; inset: 0; z-index: 25; display: grid; place-items: center;
+  border-radius: inherit; font-weight: 600; color: var(--text); pointer-events: none;
+  background: color-mix(in srgb, var(--surface-solid) 82%, var(--accent));
+}

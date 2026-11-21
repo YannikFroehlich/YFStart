@@ -34,12 +34,18 @@ window.addEventListener('message', async e => {
       });
       if (!res.ok) throw new Error(SCREEN_ERRORS[res.status] || `Kein Bild (HTTP ${res.status}).`);
       reply({ result: await res.arrayBuffer() });
-    } else if (op === 'watchStats') {
-      await watchStats(e.data.token, id, e.source);
+    } else if (op === 'watch') {
+      await watch(e.data.token, id, e.source);
       reply({ result: true });
-    } else if (op === 'unwatchStats') {
-      statsSocket?.close();
+    } else if (op === 'unwatch') {
+      liveSocket?.close();
       reply({ result: true });
+    } else if (op === 'cover') {
+      // Albumcover zur Medienanzeige; 204 = keins.
+      const res = await fetch('/media/cover', { headers: { Authorization: 'Bearer ' + e.data.token }, cache: 'no-store' });
+      reply({ result: res.status === 200 ? { type: res.headers.get('Content-Type'), data: await res.arrayBuffer() } : null });
+    } else if (op === 'upload') {
+      reply({ result: await upload(e.data.token, e.data.file, e.data.key, e.source) });
     }
   } catch (err) {
     reply({ error: err.message });
@@ -53,15 +59,16 @@ const SCREEN_ERRORS = {
   503: 'Gerade nicht möglich (Sperrbildschirm oder Admin-Abfrage).',
 };
 
-// Auslastung (CPU, RAM, GPU, Akku): YFRemote schickt sie etwa jede Sekunde, solange die Anzeige an ist.
-// Ein offener WebSocket pro PC, die Werte gehen an die neue Tab-Seite. Wird er geschlossen, misst der
-// PC nicht mehr (die Tab-Seite schließt ihn, sobald sie nicht mehr sichtbar ist).
-let statsSocket = null;
+// Live-Anzeige: ein offener WebSocket pro PC. YFRemote schickt darüber von selbst, was gerade läuft
+// ("media", bei jeder Änderung) und nach dem Einschalten etwa jede Sekunde die Auslastung
+// ("systemStats"). Beides geht an die neue Tab-Seite. Die schließt die Verbindung, sobald sie nicht mehr
+// sichtbar ist; dann misst der PC nicht mehr.
+let liveSocket = null;
 
-function watchStats(token, requestId, page) {
-  if (statsSocket && statsSocket.readyState <= WebSocket.OPEN) return Promise.resolve();
+function watch(token, requestId, page) {
+  if (liveSocket && liveSocket.readyState <= WebSocket.OPEN) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const ws = statsSocket = new WebSocket(wsUrl(token));
+    const ws = liveSocket = new WebSocket(wsUrl(token));
     const timer = setTimeout(() => { ws.close(); reject(new Error('Keine Antwort vom PC.')); }, 6000);
     ws.onopen = () => ws.send(JSON.stringify({ type: 'systemStats', enabled: true, requestId }));
     ws.onmessage = ev => {
@@ -69,17 +76,44 @@ function watchStats(token, requestId, page) {
       try { m = JSON.parse(ev.data); } catch { return; }
       if (m.requestId === requestId) {
         clearTimeout(timer);
-        m.success ? resolve() : (ws.close(), reject(new Error(m.error || 'Keine Auslastung verfügbar.')));
-      } else if (m.type === 'systemStats') {
-        page.postMessage({ yfstart: true, stats: m }, EXTENSION_ORIGIN);
+        resolve(); // ohne Auslastung (älteres YFRemote, Linux ohne Sensoren) bleibt die Medienanzeige
+      } else if (m.type === 'systemStats' || m.type === 'media') {
+        page.postMessage({ yfstart: true, push: m }, EXTENSION_ORIGIN);
       }
     };
     ws.onclose = () => {
       clearTimeout(timer);
-      if (statsSocket === ws) statsSocket = null;
-      page.postMessage({ yfstart: true, stats: null }, EXTENSION_ORIGIN);
+      if (liveSocket === ws) liveSocket = null;
+      page.postMessage({ yfstart: true, push: null }, EXTENSION_ORIGIN);
       reject(new Error('Verbindung abgelehnt.'));
     };
+  });
+}
+
+// Datei an den PC (POST /files, multipart). XMLHttpRequest statt fetch, weil nur das den
+// Upload-Fortschritt meldet. Fortschritt als eigene Nachricht, die Antwort kommt am Ende.
+const UPLOAD_ERRORS = {
+  401: 'Kopplung ungültig – PC neu koppeln.',
+  403: 'Dieses Gerät darf keine Dateien schicken.',
+  413: 'Datei ist zu groß für den PC.',
+};
+
+function upload(token, file, key, page) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/files');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.upload.onprogress = ev => page.postMessage({ yfstart: true, upload: key, loaded: ev.loaded, total: ev.total }, EXTENSION_ORIGIN);
+    xhr.onload = () => {
+      let body = null;
+      try { body = JSON.parse(xhr.responseText); } catch { /* keine JSON-Antwort */ }
+      if (xhr.status === 200 && body?.success) resolve(body.fileName);
+      else reject(new Error(UPLOAD_ERRORS[xhr.status] || body?.error || `Fehler beim Senden (HTTP ${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error('Verbindung zum PC abgebrochen.'));
+    const form = new FormData();
+    form.append('file', file, file.name);
+    xhr.send(form);
   });
 }
 
