@@ -86,6 +86,11 @@
           <select name="action"></select>
         </label>
         <label data-kind="remote" id="paramRow"><span id="paramLabel">Parameter</span> <input name="param"></label>
+        <div data-kind="remote" id="stepsRow" class="steps">
+          <span class="icon-hint">Schritte, nacheinander („Bildschirm öffnen“ am besten zuletzt)</span>
+          <div id="stepList"></div>
+          <button type="button" id="addStep" class="btn small"><i class="fa-solid fa-plus"></i> Schritt</button>
+        </div>
         <label data-kind="remote" class="check"><input type="checkbox" name="confirm"> Vor dem Ausführen nachfragen</label>
 
         <h3>Icon</h3>
@@ -245,6 +250,8 @@
       <label class="check"><input type="checkbox" name="pcMedia"> Was gerade läuft (Musik, Videos)</label>
       <label class="check"><input type="checkbox" name="pcPreview"> Vorschaubild beim Überfahren von „Bildschirm“</label>
       <label class="check"><input type="checkbox" name="pcFiles"> Dateien senden (Knopf „Datei“ und Ziehen)</label>
+      <label class="check"><input type="checkbox" name="pcClipboard"> Zwischenablage teilen (Menü „…“)</label>
+      <label class="check"><input type="checkbox" name="pcTimer"> Ausschalt-Timer im Menü „…“</label>
     </div>
 
     <h3>Suche und Tastatur</h3>

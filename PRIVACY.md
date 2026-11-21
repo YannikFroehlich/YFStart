@@ -32,8 +32,8 @@ löscht Chrome sie.
   YFStart die Seite selbst nach `/favicon.ico` bzw. `/apple-touch-icon.png`. Die Symbole der Google-Apps kommen
   von `ssl.gstatic.com`.
 - **YFRemote-PCs:** Befehle, Kopplungsanfragen (mit der eingegebenen PIN), Statusabfragen, die
-  Auslastung, der Medienstatus, das Vorschaubild des Bildschirms und Dateien, die man selbst an einen
-  PC schickt, gehen nur an die PCs, die selbst eingetragen wurden, in der Regel im eigenen Heimnetz.
+  Auslastung, der Medienstatus, das Vorschaubild des Bildschirms sowie Dateien und Inhalte der
+  Zwischenablage, die man selbst an einen PC schickt oder von ihm holt, gehen nur an die PCs, die selbst eingetragen wurden, in der Regel im eigenen Heimnetz.
   Zugriff auf eine PC-Adresse fragt Chrome beim ersten Benutzen einzeln ab.
 
 ## Was YFStart nicht tut

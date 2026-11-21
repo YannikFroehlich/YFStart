@@ -96,7 +96,32 @@ const ACTIONS = {
     name: 'App starten', icon: 'fa-solid fa-rocket', param: 'App-Name (wie im Startmenü)',
     build: p => { if (!p) throw new Error('Bitte einen App-Namen angeben.'); return { type: 'launch', name: p }; },
   },
+  timer: {
+    name: 'Ausschalt-Timer', icon: 'fa-solid fa-hourglass-half', param: 'Minuten bis zum Herunterfahren (0 bricht ab)',
+    build: p => {
+      const m = Number(p);
+      if (p === '' || !Number.isInteger(m) || m < 0 || m > 1440) throw new Error('Minuten müssen eine Zahl von 0 bis 1440 sein.');
+      return { type: 'shutdownTimer', minutes: m, power: 'shutdown' };
+    },
+  },
+  // Mehrere Schritte nacheinander (b.steps), siehe runOn.
+  sequence: { name: 'Ablauf (mehrere Schritte)', icon: 'fa-solid fa-list-check', build: () => null },
 };
+
+// Schritte, die es nur in Abläufen gibt.
+const STEP_ONLY = {
+  wait: {
+    name: 'Warten', param: 'Sekunden (bis 600)',
+    build: p => {
+      const sec = Number(String(p).replace(',', '.'));
+      if (!(sec > 0 && sec <= 600)) throw new Error('Warten geht 0,1 bis 600 Sekunden.');
+      return { wait: sec };
+    },
+  },
+  screen: { name: 'Bildschirm öffnen', build: () => ({ screen: true }) },
+};
+const stepAction = key => (key === 'sequence' ? null : ACTIONS[key] ?? STEP_ONLY[key]);
+const STEP_OPTIONS = [...Object.entries(ACTIONS).filter(([k]) => k !== 'sequence'), ...Object.entries(STEP_ONLY)];
 
 // ---------- Zustand ----------
 const DEFAULT_DESIGN = {
@@ -104,11 +129,11 @@ const DEFAULT_DESIGN = {
   openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
   greeting: true, name: '', // „Guten Morgen, <name>“ über der Uhr
   // Ein- und ausblendbar: PC-Karten und Suche
-  pcStats: true, pcMedia: true, pcPreview: true, pcFiles: true, calc: true, keys: true,
+  pcStats: true, pcMedia: true, pcPreview: true, pcFiles: true, pcClipboard: true, pcTimer: true, calc: true, keys: true,
 };
-const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'calc', 'keys'];
+const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'pcClipboard', 'pcTimer', 'calc', 'keys'];
 const state = {
-  shortcuts: [], groups: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
+  shortcuts: [], groups: [], pcs: [], allButtons: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
 };
 let editing = false;
 const $ = sel => document.querySelector(sel);
@@ -151,12 +176,13 @@ function applyDesign(d) {
 try { applyDesign(state.design = { ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
 
 async function load() {
-  const d = await storage.get(['shortcuts', 'groups', 'pcs', 'weather', 'design', 'syncOn', 'syncAt']);
+  const d = await storage.get(['shortcuts', 'groups', 'pcs', 'allButtons', 'weather', 'design', 'syncOn', 'syncAt']);
   state.groups = Array.isArray(d.groups) ? d.groups : [];
   if (d.weather) state.weather = d.weather;
   state.design = { ...DEFAULT_DESIGN, ...d.design };
   state.shortcuts = Array.isArray(d.shortcuts) ? d.shortcuts : structuredClone(DEFAULT_SHORTCUTS);
   state.pcs = Array.isArray(d.pcs) ? d.pcs : [];
+  state.allButtons = Array.isArray(d.allButtons) ? d.allButtons : [];
   firstRun = !d.shortcuts;
   syncOn = hasExt && !!d.syncOn;
   syncAt = d.syncAt || 0;
@@ -172,7 +198,8 @@ async function load() {
 
 async function writeLocal() {
   await storage.set({
-    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs, weather: state.weather, design: state.design, syncAt,
+    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs, allButtons: state.allButtons,
+    weather: state.weather, design: state.design, syncAt,
   });
   try { localStorage.setItem('yfstart.design', JSON.stringify(state.design)); } catch { /* Bild zu groß: dann ohne Sofort-Kopie */ }
 }
@@ -198,6 +225,7 @@ function syncPayload() {
     shortcuts: tiles(state.shortcuts),
     groups: state.groups.map(g => ({ ...g, shortcuts: tiles(g.shortcuts) })),
     pcs: state.pcs.map(({ token, ...pc }) => ({ ...pc, buttons: tiles(pc.buttons) })),
+    allButtons: tiles(state.allButtons),
     weather: state.weather,
     design: { ...state.design, bgImage: null },
   };
@@ -205,12 +233,14 @@ function syncPayload() {
 
 // Übernimmt einen Stand vom Google-Konto, behält aber, was nur auf diesem PC liegt.
 function applySynced(data) {
-  const allTiles = s => [...s.shortcuts, ...s.groups.flatMap(g => g.shortcuts), ...s.pcs.flatMap(pc => pc.buttons || [])];
+  const allTiles = s => [...s.shortcuts, ...s.groups.flatMap(g => g.shortcuts), ...s.pcs.flatMap(pc => pc.buttons || []),
+    ...(s.allButtons || [])];
   const images = new Map(allTiles(state).filter(t => isDataUrl(t.image)).map(t => [t.id, t.image]));
   for (const t of allTiles(data)) if (t.localImage && images.has(t.id)) t.image = images.get(t.id);
   const before = new Map(state.pcs.map(pc => [pc.id, pc]));
   state.shortcuts = data.shortcuts;
   state.groups = data.groups;
+  state.allButtons = Array.isArray(data.allButtons) ? data.allButtons : [];
   state.pcs = data.pcs.map(pc => {
     const old = before.get(pc.id);
     return { ...pc, token: old && old.url === pc.url ? old.token : null };
@@ -370,6 +400,7 @@ function tick() {
   const g = $('#greeting');
   g.hidden = !show;
   g.textContent = show ? greeting(now.getHours()) + (name.trim() ? ', ' + name.trim() : '') : '';
+  for (const pc of state.pcs) if (pcTimers.has(pc.id)) paintTimer(pc);
   $('#clock').replaceChildren(
     now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
     h('small', {}, now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
@@ -592,7 +623,7 @@ function renderShortcuts() {
 }
 
 function renderPcs() {
-  $('#pcs').replaceChildren(...state.pcs.map((pc, pcIndex) => {
+  const cards = state.pcs.map((pc, pcIndex) => {
     const buttons = pc.buttons.map((b, i) => {
       const el = vtName(tileEl(b, 'remote'), b.id);
       el.style.setProperty('--i', state.shortcuts.length + pcIndex * 3 + i);
@@ -619,10 +650,12 @@ function renderPcs() {
           class: 'btn small', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
           onclick: () => pickFiles(pc),
         }, fa('fa-solid fa-file-arrow-up'), 'Datei'),
+        pc.token && !editing && moreMenu(pc),
         screenBtn,
         editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
           fa('fa-solid fa-pen'), 'PC bearbeiten'),
       ),
+      h('div', { class: 'pc-timer', 'data-pc': pc.id }),
       h('div', { class: 'pc-stats', 'data-pc': pc.id }),
       h('div', { class: 'pc-media', 'data-pc': pc.id }),
       h('div', { class: 'pc-uploads', 'data-pc': pc.id }),
@@ -633,25 +666,157 @@ function renderPcs() {
     vtName(card, 'pc-' + pc.id);
     previewOnHover(screenBtn, card, pc);
     dropFiles(card, pc);
-    paintStats(card.querySelector('.pc-stats'), pcStats.get(pc.id));
-    paintMedia(pc);
     return card;
-  }));
+  });
+  $('#pcs').replaceChildren(...[allPcsCard(), ...cards].filter(Boolean));
+  for (const pc of state.pcs) { // erst jetzt im Dokument: letzte bekannte Werte wieder zeigen
+    paintStats(document.querySelector(`.pc-stats[data-pc="${pc.id}"]`), pcStats.get(pc.id));
+    paintMedia(pc);
+    paintTimer(pc);
+  }
   checkHealth();
+}
+
+// Eigene Karte „Alle PCs“ (ab zwei gekoppelten PCs): ihre Buttons laufen auf jedem gekoppelten PC.
+function allPcsCard() {
+  const paired = state.pcs.filter(pc => pc.token);
+  if (paired.length < 2 || (!state.allButtons.length && !editing)) return null;
+  const pseudo = { name: 'alle PCs' };
+  const buttons = state.allButtons.map((b, i) => {
+    const el = vtName(tileEl(b, 'remote'), b.id);
+    if (editing) {
+      el.addEventListener('click', () => openTileEditor('remote', state.allButtons, i, pseudo));
+      sortable(el, state.allButtons, i);
+    } else {
+      el.addEventListener('click', () => runAll(b, el));
+    }
+    return el;
+  });
+  if (editing) buttons.push(addTile(() => openTileEditor('remote', state.allButtons, -1, pseudo)));
+  return vtName(h('div', { class: 'pc all' },
+    h('div', { class: 'pc-head' }, fa('fa-solid fa-layer-group'), h('h3', {}, 'Alle PCs'),
+      h('span', { class: 'host' }, paired.map(pc => pc.name).join(', '))),
+    buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, '„Hinzufügen“: ein Button für alle PCs auf einmal.'),
+  ), 'pc-all');
+}
+
+async function runAll(b, el) {
+  const paired = state.pcs.filter(pc => pc.token);
+  const name = b.label || ACTIONS[b.action]?.name;
+  if (b.confirm && !confirm(`${name} auf allen ${paired.length} PCs ausführen?`)) return;
+  el.classList.add('busy');
+  const results = await Promise.allSettled(paired.map(pc => runOn(pc, b, false)));
+  el.classList.remove('busy');
+  const failed = paired.map((pc, i) => results[i].status === 'rejected' && `${pc.name} (${results[i].reason.message})`).filter(Boolean);
+  if (failed.length) toast(`${name} fehlgeschlagen: ${failed.join(', ')}`, true);
+  else toast(`${name} → ${paired.length} PCs ✓`);
+}
+
+// ---------- Menü „…“: Zwischenablage und Ausschalt-Timer ----------
+function moreMenu(pc) {
+  const { pcClipboard: clip, pcTimer: timer } = state.design;
+  if (!clip && !timer) return null;
+  const item = (icon, text, run) => h('button', {
+    type: 'button', class: 'menu-item', onclick: () => { menu.classList.remove('open'); run(); },
+  }, fa('fa-solid ' + icon), text);
+  const menu = h('div', { class: 'pc-menu', role: 'menu' },
+    clip && item('fa-paste', 'Meine Zwischenablage an den PC', () => sendClipboard(pc)),
+    clip && item('fa-copy', 'Zwischenablage vom PC holen', () => fetchClipboard(pc)),
+    clip && timer && h('hr'),
+    timer && h('span', { class: 'menu-label' }, 'Herunterfahren in'),
+    timer && h('div', { class: 'menu-row' }, [[15, '15 Min.'], [30, '30 Min.'], [60, '1 Std.'], [120, '2 Std.']].map(([min, text]) =>
+      h('button', { type: 'button', class: 'btn small', onclick: () => { menu.classList.remove('open'); setTimer(pc, min); } }, text))),
+    timer && pcTimers.has(pc.id) && item('fa-ban', 'Timer abbrechen', () => setTimer(pc, 0)),
+  );
+  const btn = h('button', {
+    class: 'btn small', type: 'button', title: 'Mehr', 'aria-haspopup': 'true',
+    onclick: e => { e.stopPropagation(); closeMenus(menu); menu.classList.toggle('open'); },
+  }, fa('fa-solid fa-ellipsis'));
+  return h('span', { class: 'menu-wrap' }, btn, menu);
+}
+
+function closeMenus(except) {
+  document.querySelectorAll('.pc-menu.open').forEach(m => m !== except && m.classList.remove('open'));
+}
+document.addEventListener('click', e => { if (!e.target.closest('.pc-menu')) closeMenus(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+
+async function setTimer(pc, minutes) {
+  try {
+    await sendAction(pc, ACTIONS.timer.build(String(minutes)));
+    toast(minutes ? `${pc.name} fährt in ${minutes} Min. herunter.` : `Timer auf ${pc.name} abgebrochen.`);
+  } catch (err) {
+    toast(`${pc.name}: ${err.message}`, true);
+  }
+}
+
+// Deine Zwischenablage an den PC: ein Bild als Bild, sonst Text. Chrome fragt beim ersten Mal nach.
+async function sendClipboard(pc) {
+  try {
+    const [item] = await navigator.clipboard.read();
+    const imageType = item?.types.find(t => t.startsWith('image/'));
+    if (imageType) {
+      const blob = await item.getType(imageType);
+      await callBridge(pc.url, { op: 'clipImage', token: pc.token, blob: new Blob([await blob.arrayBuffer()], { type: blob.type }) }, 30_000);
+      return toast(`Bild → Zwischenablage von ${pc.name}`);
+    }
+    if (item?.types.includes('text/plain')) {
+      const text = await (await item.getType('text/plain')).text();
+      if (text) {
+        await callBridge(pc.url, { op: 'clipText', token: pc.token, text });
+        return toast(`Text → Zwischenablage von ${pc.name}`);
+      }
+    }
+    toast('Deine Zwischenablage ist leer.', true);
+  } catch (err) {
+    toast(err.name === 'NotAllowedError' ? 'Chrome hat den Zugriff auf deine Zwischenablage nicht erlaubt.' : `${pc.name}: ${err.message}`, true);
+  }
+}
+
+async function fetchClipboard(pc) {
+  try {
+    const clip = await callBridge(pc.url, { op: 'getClip', token: pc.token });
+    if (clip.text) {
+      await navigator.clipboard.writeText(clip.text);
+      toast(`Text aus der Zwischenablage von ${pc.name} kopiert.`);
+    } else if (clip.image) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([clip.image], { type: 'image/png' }) })]);
+      toast(`Bild aus der Zwischenablage von ${pc.name} kopiert.`);
+    } else {
+      toast(`Die Zwischenablage von ${pc.name} ist leer.`);
+    }
+  } catch (err) {
+    toast(`${pc.name}: ${err.message}`, true);
+  }
 }
 
 // ---------- Live-Anzeige: Auslastung, Musik, Vorschau ----------
 const pcStats = new Map(); // PC-ID -> letzte systemStats-Nachricht von YFRemote
 const pcMedia = new Map(); // PC-ID -> letzte media-Nachricht (was gerade läuft)
 const pcCovers = new Map(); // PC-ID -> { id, url } Albumcover als Blob-URL
+const pcTimers = new Map(); // PC-ID -> { remaining, action, at } geplanter Ausschalt-Timer
 
 // Eine offene Verbindung je PC, solange der Tab sichtbar ist (siehe yfremote-bridge.js).
+// Bleibt auch ohne Auslastung und Musik offen: darüber kommt der Ausschalt-Timer.
 async function watchPc(pc) {
   if (!pc.token || document.hidden) return;
-  const { pcStats: stats, pcMedia: media } = state.design;
-  const op = stats || media ? 'watch' : 'unwatch'; // beides aus: keine Verbindung
-  if (op === 'unwatch' && !bridges.has(pc.url)) return;
-  try { await callBridge(pc.url, { op, token: pc.token, stats, media }); } catch { /* offline */ }
+  try { await callBridge(pc.url, { op: 'watch', token: pc.token, stats: state.design.pcStats }); } catch { /* offline */ }
+}
+
+const TIMER_TEXT = { shutdown: 'Fährt herunter in', sleep: 'Energie sparen in', displayOff: 'Bildschirm aus in' };
+
+// Geplanter Ausschalt-Timer mit Countdown; tick() zählt jede Sekunde weiter.
+function paintTimer(pc) {
+  const el = document.querySelector(`.pc-timer[data-pc="${pc.id}"]`);
+  if (!el) return;
+  const t = pcTimers.get(pc.id);
+  if (!t) return void el.replaceChildren();
+  const left = Math.max(0, Math.round(t.remaining - (Date.now() - t.at) / 1000));
+  const text = `${TIMER_TEXT[t.action] ?? TIMER_TEXT.shutdown} ${left >= 3600 ? Math.floor(left / 3600) + ':' + mmss(left % 3600).padStart(5, '0') : mmss(left)}`;
+  const label = el.querySelector('.txt');
+  if (label) return void (label.textContent = text);
+  el.replaceChildren(fa('fa-solid fa-power-off'), h('span', { class: 'txt' }, text),
+    h('button', { class: 'btn small', type: 'button', onclick: () => setTimer(pc, 0) }, 'Abbrechen'));
 }
 
 // Ein Wert mit Balken im Hintergrund; über 85 % rot.
@@ -689,7 +854,7 @@ function paintMedia(pc) {
     return void el.replaceChildren();
   }
   const cover = pcCovers.get(pc.id);
-  const key = [m.title, m.artist, m.playing, cover?.url].join('|');
+  const key = [m.title, m.artist, m.playing, m.muted, m.volume != null, m.canSeek, cover?.url].join('|');
   if (el.dataset.key !== key) {
     el.dataset.key = key;
     const control = (icon, action, title) => h('button', {
@@ -706,16 +871,44 @@ function paintMedia(pc) {
       h('span', { class: 'track' },
         h('b', { title: m.title }, m.title),
         m.artist && h('small', { title: m.artist }, m.artist),
-        h('span', { class: 'bar' })),
+        h('span', { class: 'bar' + (m.canSeek ? ' seek' : ''), onclick: e => seek(pc, e) })),
       control('fa-backward-step', 'prev', 'Vorheriger Titel'),
       control(m.playing ? 'fa-pause' : 'fa-play', 'playPause', m.playing ? 'Pause' : 'Abspielen'),
       control('fa-forward-step', 'next', 'Nächster Titel'),
+      m.volume != null && h('span', { class: 'volume' },
+        control(m.muted ? 'fa-volume-xmark' : 'fa-volume-high', 'mute', m.muted ? 'Ton an' : 'Stumm'),
+        h('input', {
+          type: 'range', min: 0, max: 100, 'aria-label': 'Lautstärke', title: 'Lautstärke',
+          oninput: e => setVolume(pc, Number(e.target.value)),
+        })),
     );
   }
+  // Regler nicht unter der Maus wegziehen, solange er bedient wird
+  const vol = el.querySelector('.volume input');
+  if (vol && document.activeElement !== vol) vol.value = m.volume;
+  if (vol) vol.title = `Lautstärke ${m.volume} %`;
   const bar = el.querySelector('.bar');
   bar.hidden = !(m.duration > 0);
   bar.style.setProperty('--p', m.duration > 0 ? Math.min(100, (m.position ?? 0) / m.duration * 100) + '%' : '0%');
   bar.title = m.duration > 0 ? `${mmss(m.position ?? 0)} / ${mmss(m.duration)}` : '';
+}
+
+// Lautstärke beim Ziehen: höchstens alle 120 ms ein Befehl, der letzte Wert kommt immer an.
+const volumeTimers = new Map();
+function setVolume(pc, volume) {
+  clearTimeout(volumeTimers.get(pc.id));
+  volumeTimers.set(pc.id, setTimeout(() => {
+    sendAction(pc, ACTIONS.volume.build(String(volume))).catch(err => toast(`${pc.name}: ${err.message}`, true));
+  }, 120));
+}
+
+// Klick auf die Zeitleiste spult dorthin, wenn die App das kann (canSeek).
+function seek(pc, e) {
+  const m = pcMedia.get(pc.id);
+  if (!m?.canSeek || !(m.duration > 0)) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const position = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * m.duration);
+  sendAction(pc, { type: 'mediaSeek', position }).catch(err => toast(`${pc.name}: ${err.message}`, true));
 }
 
 async function loadCover(pc, coverId) {
@@ -740,6 +933,10 @@ addEventListener('message', e => {
   if (!m) { // Verbindung zu
     pcStats.delete(pc.id);
     pcMedia.delete(pc.id);
+    pcTimers.delete(pc.id);
+  } else if (m.type === 'shutdownTimer') {
+    if (m.remainingSeconds == null) pcTimers.delete(pc.id);
+    else pcTimers.set(pc.id, { remaining: m.remainingSeconds, action: m.action, at: Date.now() });
   } else if (m.type === 'systemStats') {
     pcStats.set(pc.id, m);
   } else if (m.type === 'media') {
@@ -748,6 +945,7 @@ addEventListener('message', e => {
   }
   paintStats(document.querySelector(`.pc-stats[data-pc="${pc.id}"]`), pcStats.get(pc.id));
   paintMedia(pc);
+  paintTimer(pc);
 });
 
 // Unsichtbarer Tab: Verbindung schließen, damit die PCs nicht umsonst messen. Wieder sichtbar: checkHealth verbindet neu.
@@ -921,7 +1119,10 @@ async function ensureHostAccess(url) {
   if (!hasExt) return;
   const pattern = hostPattern(url);
   const granted = await chrome.permissions.contains({ origins: [pattern] })
-    || await chrome.permissions.request({ origins: [pattern] });
+    || await chrome.permissions.request({ origins: [pattern] }).catch(() => {
+      // Chrome fragt nur direkt nach einem Klick, nicht mitten in einem Ablauf.
+      throw new Error('Zugriff auf den PC noch nicht erlaubt – auf seiner Karte „Verbindung erlauben“ klicken.');
+    });
   if (!granted) throw new Error('Ohne Zugriff auf den PC geht es nicht – bitte in Chrome erlauben.');
   await registerForHost('yfstart-bridge', pattern.replace(/\*$/, 'health'),
     { js: ['yfremote-bridge.js'], allFrames: true, runAt: 'document_start' });
@@ -1019,15 +1220,32 @@ async function runButton(pc, b, el) {
   const action = ACTIONS[b.action];
   if (!action) return toast('Unbekannte Aktion.', true);
   if (!pc.token) return toast(`${pc.name} ist nicht gekoppelt.`, true);
-  if (b.confirm && !confirm(`${action.name} auf „${pc.name}“ ausführen?`)) return;
+  if (b.confirm && !confirm(`${b.label || action.name} auf „${pc.name}“ ausführen?`)) return;
   el.classList.add('busy');
   try {
-    await sendAction(pc, action.build(b.param ?? ''));
+    await runOn(pc, b);
     toast(`${b.label || action.name} → ${pc.name} ✓`);
   } catch (err) {
     toast(`${pc.name}: ${err.message}`, true);
   } finally {
     el.classList.remove('busy');
+  }
+}
+
+// Ein Button auf einem PC; ein Ablauf Schritt für Schritt. withScreen = false (alle PCs auf einmal):
+// „Bildschirm öffnen“ auslassen, sonst gingen mehrere Bildschirme gleichzeitig auf.
+async function runOn(pc, b, withScreen = true) {
+  if (b.action !== 'sequence') return sendAction(pc, ACTIONS[b.action].build(b.param ?? ''));
+  for (const [i, step] of (b.steps ?? []).entries()) {
+    try {
+      const msg = stepAction(step.action)?.build(step.param ?? '');
+      if (!msg) throw new Error('Unbekannte Aktion.');
+      if (msg.wait) await new Promise(r => setTimeout(r, msg.wait * 1000));
+      else if (msg.screen) { if (withScreen) await openScreen(pc); }
+      else await sendAction(pc, msg);
+    } catch (err) {
+      throw new Error(`Schritt ${i + 1}: ${err.message}`);
+    }
   }
 }
 
@@ -1057,14 +1275,38 @@ function tileFromForm() {
     fg: tf.fg.value,
     autoFg: tf.autoFg.checked,
     openIn: tf.openIn.value,
+    steps: tf.action.value === 'sequence' ? structuredClone(tileCtx.steps) : undefined,
   };
 }
+
+// Schritte eines Ablaufs: je Zeile Aktion, ggf. Wert, Entfernen.
+const EXAMPLE_STEPS = [{ action: 'volume', param: '30' }, { action: 'wait', param: '1' }, { action: 'screen', param: '' }];
+function renderSteps() {
+  $('#stepList').replaceChildren(...tileCtx.steps.map((step, i) => {
+    const def = stepAction(step.action);
+    const select = h('select', { 'aria-label': `Schritt ${i + 1}` }, STEP_OPTIONS.map(([k, a]) => h('option', { value: k }, a.name)));
+    select.value = step.action;
+    select.addEventListener('change', () => { step.action = select.value; step.param = ''; renderSteps(); });
+    const param = def?.param && h('input', { value: step.param ?? '', placeholder: def.param, 'aria-label': def.param, title: def.param });
+    param?.addEventListener('input', () => (step.param = param.value));
+    return h('div', { class: 'step' }, h('span', { class: 'n' }, `${i + 1}.`), select, param || h('span', { class: 'spacer' }),
+      h('button', {
+        type: 'button', class: 'iconbtn small', title: 'Schritt entfernen',
+        onclick: () => { tileCtx.steps.splice(i, 1); renderSteps(); },
+      }, fa('fa-solid fa-xmark')));
+  }));
+}
+$('#addStep').addEventListener('click', () => {
+  tileCtx.steps.push({ action: 'wait', param: '1' });
+  renderSteps();
+});
 
 function updateTileForm() {
   const { kind, mode } = tileCtx;
   tf.querySelectorAll('[data-kind]').forEach(el => (el.hidden = el.dataset.kind !== kind));
   const action = ACTIONS[tf.action.value];
   $('#paramRow').hidden = kind !== 'remote' || !action.param;
+  $('#stepsRow').hidden = kind !== 'remote' || tf.action.value !== 'sequence';
   $('#paramLabel').textContent = action.param || '';
   tf.fg.disabled = tf.autoFg.checked;
   $('#iconModes').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
@@ -1088,7 +1330,10 @@ function openTileEditor(kind, list, index, pc) {
   const mode = icon.startsWith('fa:') ? 'fa'
     : t.image || /^(https?:|data:image\/)/i.test(icon) ? 'image'
     : icon ? 'text' : 'auto';
-  tileCtx = { kind, list, index, mode, faIcon: mode === 'fa' ? icon.slice(3) : null, image: t.image || null };
+  tileCtx = {
+    kind, list, index, mode, faIcon: mode === 'fa' ? icon.slice(3) : null, image: t.image || null,
+    steps: structuredClone(t.steps ?? []),
+  };
   $('#tileTitle').textContent = (isNew ? 'Neuer ' : '') + (kind === 'link' ? 'Shortcut' : `Button für ${pc.name}`);
   tf.label.value = t.label || '';
   tf.url.value = t.url || '';
@@ -1108,6 +1353,7 @@ function openTileEditor(kind, list, index, pc) {
   tf.group.value = state.groups.find(g => g.shortcuts === list)?.id ?? '';
   $('#faSearch').value = '';
   $('#tileDelete').hidden = isNew;
+  renderSteps();
   updateTileForm();
   tileDlg.showModal();
   tf.label.focus();
@@ -1118,6 +1364,8 @@ tf.addEventListener('input', e => { if (e.target.id !== 'faSearch') updateTileFo
 tf.action.addEventListener('change', () => {
   tf.confirm.checked = !!ACTIONS[tf.action.value].confirm;
   tf.param.value = '';
+  if (tf.action.value === 'sequence' && !tileCtx.steps.length) tileCtx.steps = structuredClone(EXAMPLE_STEPS);
+  renderSteps();
   updateTileForm();
 });
 $('#iconModes').addEventListener('click', e => {
@@ -1289,7 +1537,13 @@ tf.addEventListener('submit', e => {
     if (!t.label) t.label = new URL(t.url).hostname.replace(/^www\./, '');
     delete t.action; delete t.param; delete t.confirm;
   } else {
-    try { ACTIONS[t.action].build(t.param); } catch (err) { e.preventDefault(); return toast(err.message, true); }
+    try {
+      if (t.action !== 'sequence') ACTIONS[t.action].build(t.param);
+      else if (!t.steps.length) throw new Error('Ein Ablauf braucht mindestens einen Schritt.');
+      else t.steps.forEach((step, i) => {
+        try { stepAction(step.action).build(step.param ?? ''); } catch (err) { throw new Error(`Schritt ${i + 1}: ${err.message}`); }
+      });
+    } catch (err) { e.preventDefault(); return toast(err.message, true); }
     if (!t.label) t.label = ACTIONS[t.action].name;
     delete t.url; delete t.openIn;
   }
@@ -1397,7 +1651,7 @@ $('#exportBtn').addEventListener('click', () => {
     + 'Nur für einen Umzug, damit du die PCs nicht neu koppeln musst. Wer die Datei hat, kann deine PCs steuern: '
     + 'danach löschen.\n\nOK: mit Kopplungen. Abbrechen: ohne.');
   const data = {
-    shortcuts: state.shortcuts, groups: state.groups, weather: state.weather, design: state.design,
+    shortcuts: state.shortcuts, groups: state.groups, allButtons: state.allButtons, weather: state.weather, design: state.design,
     pcs: withTokens ? state.pcs : state.pcs.map(({ token, ...pc }) => pc),
   };
   const a = h('a', {
@@ -1420,6 +1674,7 @@ $('#importFile').addEventListener('change', async e => {
     if (!confirm('Aktuelle Shortcuts und PCs durch die Datei ersetzen?')) return;
     state.shortcuts = data.shortcuts;
     state.groups = Array.isArray(data.groups) ? data.groups : [];
+    state.allButtons = Array.isArray(data.allButtons) ? data.allButtons : [];
     state.pcs = data.pcs.map(pc => ({
       ...pc, token: typeof pc.token === 'string' ? pc.token : null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [],
     }));

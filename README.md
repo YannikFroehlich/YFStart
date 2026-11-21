@@ -19,6 +19,11 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Live-Auslastung pro PC (CPU, RAM, GPU, Akku), solange der Tab sichtbar ist; Vorschaubild des Bildschirms
   beim Überfahren von „Bildschirm“ (YFRemote zeigt am PC an, dass jemand zusieht)
 - Was gerade auf einem PC läuft (Titel, Interpret, Cover, Zeitleiste) mit Zurück, Pause und Weiter
+- Musikanzeige mit Lautstärke-Regler und Stumm; Klick auf die Zeitleiste spult dorthin (wenn die App das kann)
+- Menü „…“ auf der PC-Karte: eigene Zwischenablage an den PC schicken oder die des PCs holen (Text oder Bild),
+  Ausschalt-Timer (15 Min. bis 2 Std.) mit Countdown und Abbrechen auf der Karte
+- Abläufe: ein Button mit mehreren Schritten nacheinander, z. B. Lautstärke 30, 1 s warten, Bildschirm öffnen
+- „Alle PCs“: ab zwei gekoppelten PCs eine eigene Karte, deren Buttons auf allen PCs gleichzeitig laufen
 - Dateien an einen PC schicken: auf die PC-Karte ziehen oder „Datei“ klicken; sie landen im
   YFRemote-Empfangsordner (Standard: `Dokumente\YFRemote`)
 - Tastenkürzel: `/` springt in die Suche, `1` bis `9` öffnet die Verknüpfungen im Hauptbereich
@@ -26,7 +31,7 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Rechner in der Suche: `17*23`, `(2+3)^2`, `wurzel(2)` zeigen das Ergebnis schon beim Tippen, Klick kopiert es
 - Wettervorhersage für sechs Tage beim Überfahren des Wetters
 - Begrüßung nach Tageszeit über der Uhr, optional mit Namen (⚙ → **Einstellungen**)
-- Auslastung, Musikanzeige, Vorschaubild, Datei senden, Rechner und Tastenkürzel lassen sich unter
+- Auslastung, Musikanzeige, Vorschaubild, Datei senden, Zwischenablage, Timer, Rechner und Tastenkürzel lassen sich unter
   ⚙ → **Einstellungen** einzeln ein- und ausblenden
 - Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
   Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons

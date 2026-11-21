@@ -545,7 +545,7 @@ html[data-anim="off"] ::backdrop {
 
 /* ---------- PC: Musik und Dateien ---------- */
 .pc-media {
-  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 6px; max-width: 460px;
+  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 6px; max-width: 600px;
   border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 .pc-media:empty { display: none; }
@@ -557,10 +557,14 @@ html[data-anim="off"] ::backdrop {
 .pc-media .track b, .pc-media .track small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-media .track b { font-weight: 600; }
 .pc-media .track small { color: var(--muted); }
+/* Zeitleiste: 3 px sichtbar, 13 px klickbar */
 .pc-media .bar {
-  --p: 0%; height: 3px; margin-top: 4px; border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--text) 12%, transparent) var(--p));
+  --p: 0%; height: 13px; margin: -3px 0 -5px;
+  background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--text) 12%, transparent) var(--p))
+    center / 100% 3px no-repeat;
 }
+.pc-media .bar.seek { cursor: pointer; }
+.pc-media .bar.seek:hover { background-size: 100% 5px; }
 .pc-media .bar[hidden] { display: none; }
 .pc-media .iconbtn.busy { opacity: .5; }
 .pc-uploads:empty { display: none; }
@@ -581,3 +585,49 @@ html[data-anim="off"] ::backdrop {
 
 .checks { display: grid; gap: 2px; }
 .checks label.check { margin-bottom: 4px; }
+
+.pc-media .volume { display: flex; align-items: center; gap: 4px; }
+.pc-media .volume input { width: 84px; accent-color: var(--accent); }
+
+/* Ausschalt-Timer */
+.pc-timer:empty { display: none; }
+.pc-timer {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 12px; max-width: 600px;
+  border-radius: 12px; font-size: 13px; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--text);
+}
+.pc-timer i { color: var(--danger); }
+.pc-timer .txt { flex: 1; }
+
+/* Menü „…“ */
+.menu-wrap { position: relative; }
+.pc-menu {
+  position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; min-width: 250px; padding: 6px;
+  display: grid; gap: 2px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lift);
+  opacity: 0; visibility: hidden; transform: translateY(-6px) scale(.97); transform-origin: top right;
+  transition: opacity .18s var(--ease-out), transform .25s var(--ease-out), visibility 0s .25s;
+}
+.pc-menu.open { opacity: 1; visibility: visible; transform: none; transition: opacity .18s var(--ease-out), transform .3s var(--ease-spring), visibility 0s; }
+.menu-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.menu-item:hover { background: var(--surface-2); }
+.menu-item i { width: 16px; color: var(--muted); }
+.pc-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+.menu-label { font-size: 12px; color: var(--muted); padding: 4px 10px 2px; }
+.menu-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 6px; }
+
+/* Alle PCs */
+.pc.all .pc-head > i { color: var(--accent); }
+
+/* Ablauf-Schritte im Editor */
+.steps { display: grid; gap: 6px; margin-bottom: 10px; }
+.steps[hidden] { display: none; }
+#stepList { display: grid; gap: 6px; }
+#addStep { justify-self: start; }
+.step { display: flex; align-items: center; gap: 6px; }
+.step .n { width: 18px; color: var(--muted); font-size: 12px; }
+.step select { flex: 1.3; min-width: 0; }
+.step input, .step .spacer { flex: 1; min-width: 0; }
