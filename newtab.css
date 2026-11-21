@@ -313,6 +313,9 @@ body.editing .tile:not(.add)::after {
 html[data-shape="round"] .pc { --ic-radius: 50%; }
 html[data-shape="square"] .pc { --ic-radius: 4px; }
 .pc.all { grid-column: 1 / -1; }
+/* Jede Karte ist eine eigene Ebene (Glas-Effekt). Mit offenem Menü oder Vorschaubild nach vorne,
+   sonst liegt die nächste Karte darüber. */
+.pc:has(.pc-menu.open, .pc-preview) { z-index: 5; }
 .pc.all .pc-head > i { color: var(--accent); }
 /* Zeile 1: Name und Knöpfe, bricht nie um. Zeile 2 (.pc-meta): Chips für Auslastung, Akku, Timer. */
 .pc-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
