@@ -194,6 +194,7 @@ html[data-shape="square"] .link-row .ic { border-radius: 4px; }
 body.editing .link-row:not(.add) { border-color: var(--border); }
 .link-row.dragging { opacity: .3; }
 .group .empty { font-size: 13px; padding: 6px 8px; margin: 0; text-align: left; }
+.greeting { text-align: center; font-size: 20px; font-weight: 500; color: var(--muted); margin-bottom: -4px; }
 .clock { text-align: center; font-size: 60px; font-weight: 300; letter-spacing: 1px; text-shadow: 0 2px 16px rgba(0, 0, 0, .12); }
 .clock small { display: block; font-size: 15px; color: var(--muted); letter-spacing: 0; text-shadow: none; }
 
@@ -205,6 +206,28 @@ body.editing .link-row:not(.add) { border-color: var(--border); }
 .weather:hover { background: var(--surface-2); color: var(--text); }
 .weather .w-icon { font-size: 21px; width: 1.3em; text-align: center; }
 .weather .w-temp { font-size: 18px; font-weight: 500; color: var(--text); }
+.weather { position: relative; }
+/* Vorhersage unter dem Wetter, beim Überfahren. Abstand als Innenabstand, damit die Maus auf dem Weg nicht herausfällt. */
+.w-forecast {
+  position: absolute; z-index: 20; top: 100%; left: 50%; padding-top: 8px;
+  opacity: 0; visibility: hidden; transform: translate(-50%, -6px); pointer-events: none;
+  transition: opacity .2s var(--ease-out), transform .3s var(--ease-out), visibility 0s .3s;
+}
+.weather:hover .w-forecast, .weather:focus-visible .w-forecast {
+  opacity: 1; visibility: visible; transform: translate(-50%, 0); pointer-events: auto;
+  transition: opacity .2s var(--ease-out) .15s, transform .35s var(--ease-spring) .15s, visibility 0s .15s;
+}
+.w-days {
+  display: grid; grid-template-columns: auto 22px auto auto auto; gap: 7px 14px; align-items: center;
+  padding: 12px 16px; border-radius: 16px; background: var(--surface-solid); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lift); white-space: nowrap; color: var(--text);
+}
+.w-day { display: contents; }
+.w-day i { text-align: center; font-size: 16px; animation: none; }
+.w-name { font-weight: 500; }
+.w-max { font-weight: 500; text-align: right; }
+.w-min, .w-rainp { color: var(--muted); }
+.w-rainp i { color: color-mix(in srgb, #3b82f6 75%, var(--text)); font-size: 11px; }
 /* Wetterfarben mit der Textfarbe gemischt: in hellen Designs dunkler, in dunklen heller */
 .w-sun { color: #f59e0b; } .w-storm { color: #eab308; }
 .w-moon { color: color-mix(in srgb, #818cf8 70%, var(--text)); }
@@ -289,6 +312,27 @@ body.editing .tile:not(.add)::after {
 .dot.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ok); animation: ping 2.4s ease-out infinite; }
 .dot.off { background: var(--danger); }
 .pc .grid { justify-content: flex-start; }
+.pc { position: relative; }
+.pc-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px 19px; }
+.pc-stats:empty { display: none; }
+@property --v { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+.meter {
+  --bar: color-mix(in srgb, var(--accent) 22%, transparent);
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 8px; font-size: 12px;
+  color: var(--muted); border: 1px solid var(--border); font-variant-numeric: tabular-nums;
+  background: linear-gradient(90deg, var(--bar) var(--v), transparent var(--v));
+  transition: --v .8s var(--ease-out);
+}
+.meter.high { --bar: color-mix(in srgb, var(--danger) 25%, transparent); }
+.meter i { font-size: 11px; }
+.pc-preview {
+  position: absolute; z-index: 30; top: 46px; right: 14px; width: min(340px, calc(100% - 28px)); min-height: 60px;
+  display: grid; place-items: center; overflow: hidden; border-radius: 12px;
+  background: var(--surface-solid); border: 1px solid var(--border); box-shadow: var(--shadow-lift);
+  animation: pop-in .3s var(--ease-spring);
+}
+.pc-preview img { display: block; width: 100%; }
+.pc-preview .msg { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
 .pc .warn { color: var(--danger); font-size: 13px; margin: 4px 0; }
 .empty { text-align: center; color: var(--muted); }
 
@@ -401,7 +445,7 @@ label.bm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
 @keyframes float { 50% { transform: translateY(-3px); } }
 
 /* Beim Öffnen: Uhr, Wetter, Suche, dann Kacheln und Karten nacheinander */
-body.intro .clock { animation: rise var(--dur-slow) var(--ease-out) both; }
+body.intro .greeting, body.intro .clock { animation: rise var(--dur-slow) var(--ease-out) both; }
 body.intro .weather { animation: rise var(--dur-slow) .06s var(--ease-out) both; }
 body.intro .search { animation: rise var(--dur-slow) .12s var(--ease-out) both; }
 body.intro .tile, body.intro .pc, body.intro .group {
@@ -495,3 +539,6 @@ html[data-anim="off"] ::backdrop {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::backdrop { animation: none !important; transition: none !important; }
 }
+.suggest li.calc { cursor: copy; }
+.suggest li.calc i { color: var(--accent); }
+.suggest li.calc b { font-size: 17px; font-weight: 600; }

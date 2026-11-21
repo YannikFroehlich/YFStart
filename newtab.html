@@ -29,6 +29,7 @@
 <div class="layout">
 <aside id="leftGroups" class="side" aria-label="Gruppen links"></aside>
 <main>
+  <div id="greeting" class="greeting" hidden></div>
   <div id="clock" class="clock"></div>
   <a id="weather" class="weather" data-follow hidden></a>
 
@@ -238,6 +239,12 @@
       <button type="button" data-value="new"><i class="fa-solid fa-arrow-up-right-from-square"></i> Neuer Tab</button>
     </div>
 
+    <h3>Begrüßung</h3>
+    <div class="row">
+      <label class="check"><input type="checkbox" name="greeting"> Über der Uhr anzeigen</label>
+      <input name="name" maxlength="30" placeholder="Dein Name (optional)" style="flex:1;min-width:160px">
+    </div>
+
     <h3>Bewegung</h3>
     <label class="check"><input type="checkbox" name="animations"> Animationen</label>
 
@@ -274,6 +281,7 @@
   </form>
 </dialog>
 
+<script src="calc.js"></script>
 <script src="newtab.js"></script>
 </body>
 </html>

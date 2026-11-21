@@ -102,6 +102,7 @@ const ACTIONS = {
 const DEFAULT_DESIGN = {
   theme: 'auto', accent: null, bgImage: null, bgDim: 30, size: 'm', shape: 'rounded', tiles: 'plain', animations: true,
   openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
+  greeting: true, name: '', // „Guten Morgen, <name>“ über der Uhr
 };
 const state = {
   shortcuts: [], groups: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
@@ -144,7 +145,7 @@ function applyDesign(d) {
 }
 
 // Kopie im localStorage, damit das Design beim Öffnen sofort steht und nichts aufblitzt.
-try { applyDesign({ ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
+try { applyDesign(state.design = { ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
 
 async function load() {
   const d = await storage.get(['shortcuts', 'groups', 'pcs', 'weather', 'design', 'syncOn', 'syncAt']);
@@ -356,8 +357,16 @@ function normalizePcUrl(raw) {
 }
 
 // ---------- Uhr ----------
+function greeting(hour) {
+  return hour < 5 ? 'Gute Nacht' : hour < 11 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : hour < 23 ? 'Guten Abend' : 'Gute Nacht';
+}
+
 function tick() {
   const now = new Date();
+  const { greeting: show, name } = state.design;
+  const g = $('#greeting');
+  g.hidden = !show;
+  g.textContent = show ? greeting(now.getHours()) + (name.trim() ? ', ' + name.trim() : '') : '';
   $('#clock').replaceChildren(
     now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
     h('small', {}, now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
@@ -372,6 +381,7 @@ let selected = -1;
 let typed = '';
 let suggestCtl;
 let suggestTimer;
+let calcValue = null; // Ergebnis, wenn der Suchtext eine Rechnung ist (calc.js)
 
 function looksLikeUrl(s) {
   return !/\s/.test(s) && /^(https?:\/\/\S+|localhost(:\d+)?(\/\S*)?|[\w-]+(\.[\w-]+)*\.[a-z]{2,}(:\d+)?(\/\S*)?|\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/\S*)?)$/i.test(s);
@@ -388,18 +398,31 @@ function go(text) {
 function showSuggest(list) {
   suggestions = list;
   selected = -1;
-  suggestBox.replaceChildren(...list.map((s, i) => h('li', {
+  const rows = list.map((s, i) => h('li', {
     role: 'option', id: 'sug' + i,
     onmousedown: e => { e.preventDefault(); go(s); },
-  }, fa('fa-solid fa-magnifying-glass'), s)));
-  const open = list.length > 0;
+  }, fa('fa-solid fa-magnifying-glass'), s));
+  if (calcValue != null) {
+    const shown = calcValue.toLocaleString('de-DE', { maximumFractionDigits: 10 });
+    const plain = calcValue.toLocaleString('de-DE', { maximumFractionDigits: 10, useGrouping: false });
+    rows.unshift(h('li', {
+      class: 'calc', title: 'Klicken kopiert das Ergebnis',
+      onmousedown: async e => {
+        e.preventDefault();
+        await navigator.clipboard.writeText(plain);
+        toast(`${plain} kopiert.`);
+      },
+    }, fa('fa-solid fa-calculator'), h('span', {}, '= ', h('b', {}, shown))));
+  }
+  suggestBox.replaceChildren(...rows);
+  const open = rows.length > 0;
   suggestBox.hidden = !open;
   $('#searchForm').classList.toggle('open', open);
   q.setAttribute('aria-expanded', open);
 }
 
 function markSelected() {
-  [...suggestBox.children].forEach((li, i) => li.setAttribute('aria-selected', i === selected));
+  suggestBox.querySelectorAll('[role=option]').forEach((li, i) => li.setAttribute('aria-selected', i === selected));
   q.value = selected >= 0 ? suggestions[selected] : typed;
   if (selected >= 0) q.setAttribute('aria-activedescendant', 'sug' + selected);
   else q.removeAttribute('aria-activedescendant');
@@ -415,12 +438,16 @@ async function loadSuggest() {
     const res = await fetch('https://suggestqueries.google.com/complete/search?client=chrome&ie=utf-8&oe=utf-8&hl='
       + lang + '&q=' + encodeURIComponent(text), { signal: suggestCtl.signal });
     const [, list] = await res.json();
-    if (typed === text && document.activeElement === q) showSuggest(list.slice(0, 8));
+    // Bei Rechnungen schlägt Google selbst „= Ergebnis“ vor; das zeigt schon die Rechner-Zeile.
+    const own = calcValue != null ? list.filter(s => !s.startsWith('=')) : list;
+    if (typed === text && document.activeElement === q) showSuggest(own.slice(0, 8));
   } catch { /* offline oder abgebrochen: keine Vorschläge */ }
 }
 
 q.addEventListener('input', () => {
   typed = q.value;
+  calcValue = calc(typed);
+  showSuggest(typed.trim() ? suggestions : []); // Ergebnis sofort, Vorschläge kommen gleich
   clearTimeout(suggestTimer);
   suggestTimer = setTimeout(loadSuggest, 90);
 });
@@ -574,25 +601,109 @@ function renderPcs() {
       return el;
     });
     if (editing) buttons.push(addTile(() => openTileEditor('remote', pc.buttons, -1, pc)));
+    const screenBtn = h('button', {
+      class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen',
+      onclick: e => openScreen(pc, e.ctrlKey || e.metaKey),
+    }, fa('fa-solid fa-display'), 'Bildschirm');
     const card = h('div', { class: 'pc' },
       h('div', { class: 'pc-head' },
         h('span', { class: 'dot', 'data-pc': pc.id, title: 'Status wird geprüft…' }),
         h('h3', {}, pc.name),
         h('span', { class: 'host' }, new URL(pc.url).host),
         h('span', { class: 'spacer' }),
-        h('button', { class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen', onclick: e => openScreen(pc, e.ctrlKey || e.metaKey) },
-          fa('fa-solid fa-display'), 'Bildschirm'),
+        screenBtn,
         editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
           fa('fa-solid fa-pen'), 'PC bearbeiten'),
       ),
+      h('div', { class: 'pc-stats', 'data-pc': pc.id }),
       !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – über ⚙ → „PC bearbeiten“ mit der PIN aus dem YFRemote-Tray koppeln.'),
       buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
     vtName(card, 'pc-' + pc.id);
+    previewOnHover(screenBtn, card, pc);
+    paintStats(card.querySelector('.pc-stats'), pcStats.get(pc.id));
     return card;
   }));
   checkHealth();
+}
+
+// ---------- Auslastung und Vorschau ----------
+const pcStats = new Map(); // PC-ID -> letzte systemStats-Nachricht von YFRemote
+
+async function watchStats(pc) {
+  if (!pc.token || document.hidden) return;
+  try { await callBridge(pc.url, { op: 'watchStats', token: pc.token }); } catch { /* offline oder ältere YFRemote-Version */ }
+}
+
+// Ein Wert mit Balken im Hintergrund; über 85 % rot.
+function meter(icon, label, percent, title) {
+  const el = h('span', { class: 'meter' + (percent > 85 ? ' high' : ''), title }, fa('fa-solid ' + icon), label);
+  el.style.setProperty('--v', Math.max(0, Math.min(100, percent)) + '%');
+  return el;
+}
+
+function paintStats(el, st) {
+  if (!el) return;
+  if (!st) return void el.replaceChildren();
+  const temp = t => (t != null ? `, ${t} °C` : '');
+  const gb = mb => (mb / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 });
+  el.replaceChildren(...[
+    st.cpuLoad != null && meter('fa-microchip', `CPU ${st.cpuLoad} %`, st.cpuLoad, `Prozessor${temp(st.cpuTemperature)}`),
+    st.memoryTotalMb > 0 && meter('fa-memory', `RAM ${gb(st.memoryUsedMb)}/${gb(st.memoryTotalMb)} GB`,
+      st.memoryUsedMb / st.memoryTotalMb * 100, 'Arbeitsspeicher'),
+    st.gpuLoad != null && meter('fa-gauge-high', `GPU ${st.gpuLoad} %`, st.gpuLoad, `Grafikkarte${temp(st.gpuTemperature)}`),
+    st.batteryLevel != null && meter(st.batteryCharging ? 'fa-plug-circle-bolt' : 'fa-battery-half',
+      `Akku ${st.batteryLevel} %`, st.batteryLevel, st.batteryCharging ? 'Akku, lädt' : 'Akku'),
+  ].filter(Boolean));
+}
+
+addEventListener('message', e => {
+  if (!e.data?.yfstart || !('stats' in e.data)) return;
+  const pc = state.pcs.find(p => new URL(p.url).origin === e.origin);
+  if (!pc) return;
+  e.data.stats ? pcStats.set(pc.id, e.data.stats) : pcStats.delete(pc.id);
+  paintStats(document.querySelector(`.pc-stats[data-pc="${pc.id}"]`), e.data.stats);
+});
+
+// Unsichtbarer Tab: Anzeige abmelden, damit die PCs nicht umsonst messen. Wieder sichtbar: checkHealth meldet neu an.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return void checkHealth();
+  for (const pc of state.pcs) if (bridges.has(pc.url)) callBridge(pc.url, { op: 'unwatchStats' }).catch(() => {});
+});
+
+// Vorschaubild beim Überfahren von „Bildschirm“: kurz warten (nicht bei jedem Vorbeifahren), dann
+// etwa jede Sekunde ein neues Standbild, solange die Maus darauf bleibt. Bewusst nicht dauerhaft:
+// YFRemote zeigt am PC an, dass jemand den Bildschirm ansieht.
+function previewOnHover(btn, card, pc) {
+  let timer = null, pop = null;
+  const stop = () => {
+    clearTimeout(timer);
+    pop?.remove();
+    pop = null;
+  };
+  btn.addEventListener('mouseleave', stop);
+  btn.addEventListener('click', stop);
+  btn.addEventListener('mouseenter', () => {
+    if (!pc.token || editing) return;
+    timer = setTimeout(async function frame() {
+      if (!pop) card.append(pop = h('div', { class: 'pc-preview' }, h('span', { class: 'msg' }, 'Bild wird geladen…')));
+      const mine = pop;
+      try {
+        const buf = await callBridge(pc.url, { op: 'screen', token: pc.token, width: 640 }, 6000);
+        if (pop !== mine) return;
+        const img = mine.querySelector('img') ?? h('img', { alt: 'Bildschirm von ' + pc.name });
+        const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
+        img.onload = () => URL.revokeObjectURL(url);
+        img.src = url;
+        if (!img.isConnected) mine.replaceChildren(img);
+      } catch (err) {
+        if (pop !== mine) return;
+        mine.replaceChildren(h('span', { class: 'msg' }, err.message));
+      }
+      if (pop === mine) timer = setTimeout(frame, 1000);
+    }, 350);
+  });
 }
 
 // ---------- Gruppen ----------
@@ -727,6 +838,7 @@ async function checkHealth() {
       const res = await fetch(new URL('/health', pc.url), { cache: 'no-store', signal: AbortSignal.timeout(2500) });
       online = res.ok;
     } catch { /* offline */ }
+    if (online) watchStats(pc);
     if (!dot) return;
     dot.className = 'dot ' + (online ? 'on' : 'off');
     dot.title = online ? 'Online' : 'Nicht erreichbar';
@@ -1174,6 +1286,7 @@ tick();
 setInterval(tick, 1000);
 load().then(() => {
   render();
+  tick();
   setTimeout(() => document.body.classList.remove('intro'), 1500); // Einblenden nur beim Öffnen
   setInterval(checkHealth, 30_000);
   renderWeather();
@@ -1200,12 +1313,13 @@ async function renderWeather() {
   const w = state.weather;
   if (!w.enabled || w.lat == null) return void (el.hidden = true);
   let { weatherCache: cache } = await storage.get(['weatherCache']);
-  const fresh = cache && cache.lat === w.lat && cache.lon === w.lon;
+  // Ohne daily.weather_code: Cache von vor der Vorhersage, neu holen.
+  const fresh = cache && cache.lat === w.lat && cache.lon === w.lon && !!cache.data.daily.weather_code;
   if (!fresh || Date.now() - cache.at > 30 * 60_000) {
     try {
-      const res = await fetch('https://api.open-meteo.com/v1/forecast?timezone=auto&forecast_days=1'
+      const res = await fetch('https://api.open-meteo.com/v1/forecast?timezone=auto&forecast_days=6'
         + `&latitude=${w.lat}&longitude=${w.lon}&current=temperature_2m,weather_code,is_day`
-        + '&daily=temperature_2m_max,temperature_2m_min');
+        + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max');
       if (!res.ok) throw new Error();
       cache = { at: Date.now(), lat: w.lat, lon: w.lon, data: await res.json() };
       await storage.set({ weatherCache: cache });
@@ -1214,8 +1328,8 @@ async function renderWeather() {
     }
   }
   const { current, daily } = cache.data;
-  let [, icon, tone, text] = WEATHER_CODES.find(([codes]) => codes.includes(current.weather_code))
-    ?? [, 'temperature-half', 'w-cloud', ''];
+  const weatherOf = code => WEATHER_CODES.find(([codes]) => codes.includes(code)) ?? [, 'temperature-half', 'w-cloud', ''];
+  let [, icon, tone, text] = weatherOf(current.weather_code);
   if (!current.is_day && current.weather_code <= 2) [icon, tone] = [current.weather_code ? 'cloud-moon' : 'moon', 'w-moon'];
   const max = Math.round(daily.temperature_2m_max[0]), min = Math.round(daily.temperature_2m_min[0]);
   el.href = 'https://www.google.com/search?q=' + encodeURIComponent('Wetter ' + w.name);
@@ -1224,6 +1338,18 @@ async function renderWeather() {
     h('span', { class: 'w-icon' }, fa(`fa-solid fa-${icon} ${tone}`)),
     h('span', { class: 'w-temp' }, `${Math.round(current.temperature_2m)}°`),
     h('span', {}, [w.name, text, `↑ ${max}°  ↓ ${min}°`].filter(Boolean).join(' · ')),
+    // Vorhersage: erscheint beim Überfahren (CSS)
+    h('span', { class: 'w-forecast' }, h('span', { class: 'w-days' }, daily.time.map((day, i) => {
+      const [, dIcon, dTone, dText] = weatherOf(daily.weather_code[i]);
+      const rain = daily.precipitation_probability_max?.[i];
+      return h('span', { class: 'w-day', title: dText },
+        h('span', { class: 'w-name' }, i === 0 ? 'Heute' : i === 1 ? 'Morgen'
+          : new Date(day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')),
+        fa(`fa-solid fa-${dIcon} ${dTone}`),
+        h('span', { class: 'w-max' }, `${Math.round(daily.temperature_2m_max[i])}°`),
+        h('span', { class: 'w-min' }, `${Math.round(daily.temperature_2m_min[i])}°`),
+        h('span', { class: 'w-rainp' }, rain ? [fa('fa-solid fa-droplet'), ` ${rain} %`] : ''));
+    }))),
   );
   el.hidden = false;
 }
@@ -1328,6 +1454,9 @@ function syncDesignForm() {
     $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
   }
   df.animations.checked = d.animations;
+  df.greeting.checked = d.greeting;
+  df.name.value = d.name;
+  df.name.disabled = !d.greeting;
   df.sync.checked = syncOn;
 }
 
@@ -1340,6 +1469,7 @@ function changeDesign(patch) {
     if ('openIn' in patch) render(); // Shortcuts übernehmen die neue Öffnen-Einstellung
   });
   syncDesignForm();
+  tick();
 }
 
 $('#themes').append(...THEMES.map(([id, name, preview, colors]) => h('button', {
@@ -1357,6 +1487,8 @@ df.ownAccent.addEventListener('change', () => changeDesign({ accent: df.ownAccen
 df.accent.addEventListener('input', () => changeDesign({ accent: df.accent.value }));
 df.bgDim.addEventListener('input', () => changeDesign({ bgDim: Number(df.bgDim.value) }));
 df.animations.addEventListener('change', () => changeDesign({ animations: df.animations.checked }));
+df.greeting.addEventListener('change', () => changeDesign({ greeting: df.greeting.checked }));
+df.name.addEventListener('input', () => { Object.assign(state.design, { name: df.name.value }); tick(); });
 $('#bgUpload').addEventListener('click', () => $('#bgFile').click());
 $('#bgFile').addEventListener('change', async e => {
   const file = e.target.files[0];
@@ -1385,6 +1517,7 @@ designDlg.addEventListener('close', () => {
     state.design = designBefore;
     applyDesign(state.design);
     render();
+    tick();
   }
   designDlg.returnValue = '';
 });

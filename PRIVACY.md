@@ -31,8 +31,8 @@ löscht Chrome sie.
   `www.google.com/s2/favicons` mit der Adresse des Shortcuts. Kennt Google die Seite nicht, fragt
   YFStart die Seite selbst nach `/favicon.ico` bzw. `/apple-touch-icon.png`. Die Symbole der Google-Apps kommen
   von `ssl.gstatic.com`.
-- **YFRemote-PCs:** Befehle, Kopplungsanfragen (mit der eingegebenen PIN) und Statusabfragen gehen
-  nur an die PCs, die selbst eingetragen wurden, in der Regel im eigenen Heimnetz. Zugriff auf
+- **YFRemote-PCs:** Befehle, Kopplungsanfragen (mit der eingegebenen PIN), Statusabfragen, die
+  Auslastung und das Vorschaubild des Bildschirms gehen nur an die PCs, die selbst eingetragen wurden, in der Regel im eigenen Heimnetz. Zugriff auf
   eine PC-Adresse fragt Chrome beim ersten Benutzen einzeln ab.
 
 ## Was YFStart nicht tut

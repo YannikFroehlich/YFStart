@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YFStart",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "Neuer Tab mit Google-Suche, Google-Apps, eigenen Shortcuts und Schnellzugriff auf YFRemote-PCs.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3cy2E9wHmmrHTh3QUuZjqOhhRXDN2DTQwoEbSV7psMNmGDqTrISUU2mV1sqJk7sqjL7EuYvPogwP9UiZyoO6+Jy4oFiFy1mEx+Pu7zFUa3/HxtSGtmjzCQ8rYibR45hKVsXh0VYvsXP+QiyjXCHoT5pTd40y2SkGZ32d7dY18o4sGfF+Vc40sONT0c3nA/G9r5Z/XAjPNuevgpWiFaX4EvrP8GeDTTooGFgH+jdsdg6fz/ET8C75i/hwjASTlN4vqADdFXdyjcDmuLFaQDp20lsmtKexjSJVFpKE02flkPZZSneZ5y9SEeH2SiMftiCrNfEDn/ULMNyrtGHbJPVBqwIDAQAB",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },

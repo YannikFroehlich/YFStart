@@ -16,6 +16,11 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
   Sperren, Ausschalten, Medien, Lautstärke, Tastenkombinationen und mehr per Klick
 - „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild
+- Live-Auslastung pro PC (CPU, RAM, GPU, Akku), solange der Tab sichtbar ist; Vorschaubild des Bildschirms
+  beim Überfahren von „Bildschirm“ (YFRemote zeigt am PC an, dass jemand zusieht)
+- Rechner in der Suche: `17*23`, `(2+3)^2`, `wurzel(2)` zeigen das Ergebnis schon beim Tippen, Klick kopiert es
+- Wettervorhersage für sechs Tage beim Überfahren des Wetters
+- Begrüßung nach Tageszeit über der Uhr, optional mit Namen (⚙ → **Einstellungen**)
 - Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
   Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons
   bleiben auf dem jeweiligen PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.
