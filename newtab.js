@@ -1928,10 +1928,42 @@ $('#bgFile').addEventListener('change', async e => {
 $('#bgClear').addEventListener('click', () => changeDesign({ bgImage: null }));
 $('#designReset').addEventListener('click', () => changeDesign({ ...DEFAULT_DESIGN }));
 
+// Bereiche im Einstellungs-Dialog; der zuletzt offene kommt beim nächsten Mal wieder.
+const setNav = designDlg.querySelector('.set-nav');
+function showSettingsTab(tab) {
+  if (!designDlg.querySelector(`.set-pane[data-pane="${tab}"]`)) tab = 'look';
+  setNav.querySelectorAll('[role=tab]').forEach(b => {
+    b.setAttribute('aria-selected', b.dataset.tab === tab);
+    b.tabIndex = b.dataset.tab === tab ? 0 : -1; // Tab-Taste springt nur zum gewählten Bereich, Pfeile wechseln
+  });
+  setNav.querySelector('[aria-selected="true"]').scrollIntoView({ block: 'nearest', inline: 'center' }); // schmale Ansicht
+  designDlg.querySelectorAll('.set-pane').forEach(p => (p.hidden = p.dataset.pane !== tab));
+  try { localStorage.setItem('yfstart.settingsTab', tab); } catch { /* egal */ }
+}
+setNav.addEventListener('click', e => {
+  const b = e.target.closest('[role=tab]');
+  if (b) showSettingsTab(b.dataset.tab);
+});
+setNav.addEventListener('keydown', e => { // Pfeiltasten wechseln den Bereich
+  if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  e.preventDefault();
+  const tabs = [...setNav.querySelectorAll('[role=tab]')];
+  const i = tabs.indexOf(document.activeElement);
+  const next = tabs[(i + (e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+  next.focus();
+  showSettingsTab(next.dataset.tab);
+});
+
 $('#designBtn').addEventListener('click', () => {
   designBefore = structuredClone(state.design);
   syncDesignForm();
+  let tab = 'look';
+  try { tab = localStorage.getItem('yfstart.settingsTab') || tab; } catch { /* egal */ }
+  showSettingsTab(tab);
   designDlg.showModal();
+  const selected = setNav.querySelector('[aria-selected="true"]');
+  selected.focus();
+  selected.scrollIntoView({ block: 'nearest', inline: 'center' }); // erst jetzt sichtbar, also erst jetzt scrollbar
 });
 $('#designCancel').addEventListener('click', () => designDlg.close());
 designDlg.addEventListener('close', () => {

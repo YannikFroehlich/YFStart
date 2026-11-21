@@ -196,86 +196,132 @@
   </form>
 </dialog>
 
-<!-- Design: Änderungen wirken sofort, Abbrechen nimmt sie zurück -->
-<dialog id="designDlg">
+<!-- Einstellungen: links die Bereiche, rechts die Optionen. Änderungen wirken sofort, Abbrechen nimmt sie zurück. -->
+<dialog id="designDlg" class="settings">
   <form method="dialog" id="designForm">
-    <h2>Einstellungen</h2>
-    <div class="themes" id="themes"></div>
+    <div class="set-layout">
+      <nav class="set-nav" role="tablist" aria-label="Bereiche der Einstellungen">
+        <h2>Einstellungen</h2>
+        <button type="button" role="tab" data-tab="look"><i class="fa-solid fa-palette"></i> Aussehen</button>
+        <button type="button" role="tab" data-tab="tiles"><i class="fa-solid fa-table-cells-large"></i> Kacheln</button>
+        <button type="button" role="tab" data-tab="home"><i class="fa-solid fa-house"></i> Startseite</button>
+        <button type="button" role="tab" data-tab="pcs"><i class="fa-solid fa-desktop"></i> PCs</button>
+        <button type="button" role="tab" data-tab="sync"><i class="fa-solid fa-rotate"></i> Sync</button>
+      </nav>
 
-    <h3>Akzentfarbe</h3>
-    <div class="row">
-      <label class="check"><input type="checkbox" name="ownAccent"> Eigene Farbe</label>
-      <input type="color" name="accent">
-    </div>
+      <div class="set-panes">
+        <section class="set-pane" data-pane="look" role="tabpanel" aria-label="Aussehen">
+          <h3>Design</h3>
+          <div class="themes" id="themes"></div>
 
-    <h3>Hintergrundbild</h3>
-    <div class="row">
-      <button type="button" id="bgUpload" class="btn small"><i class="fa-solid fa-upload"></i> Bild hochladen…</button>
-      <input type="file" id="bgFile" accept="image/*" hidden>
-      <button type="button" id="bgClear" class="btn small"><i class="fa-solid fa-xmark"></i> Entfernen</button>
-      <label class="check">Abdunkeln <input type="range" name="bgDim" min="0" max="80" step="5"></label>
-    </div>
+          <h3>Farbe und Hintergrund</h3>
+          <div class="opts">
+            <div class="opt">
+              <label for="ownAccent"><b>Eigene Akzentfarbe</b><small>Sonst passt sie zum Design</small></label>
+              <span class="opt-ctl"><input type="color" name="accent" aria-label="Akzentfarbe"><input type="checkbox" class="switch" id="ownAccent" name="ownAccent"></span>
+            </div>
+            <div class="opt">
+              <span><b>Hintergrundbild</b><small>Wird verkleinert und nur auf diesem PC gespeichert</small></span>
+              <span class="opt-ctl">
+                <button type="button" id="bgUpload" class="btn small"><i class="fa-solid fa-upload"></i> Bild…</button>
+                <input type="file" id="bgFile" accept="image/*" hidden>
+                <button type="button" id="bgClear" class="btn small" title="Bild entfernen"><i class="fa-solid fa-xmark"></i></button>
+              </span>
+            </div>
+            <label class="opt"><span><b>Bild abdunkeln</b><small>Damit Text auf hellen Bildern lesbar bleibt</small></span><input type="range" name="bgDim" min="0" max="80" step="5"></label>
+          <label class="opt"><span><b>Animationen</b><small>Weiche Übergänge beim Öffnen, Umbauen und Wechseln</small></span><input type="checkbox" class="switch" name="animations"></label>
+          </div>
+        </section>
 
-    <h3>Kacheln</h3>
-    <div class="seg" id="sizeSeg" role="group" aria-label="Kachelgröße">
-      <button type="button" data-value="s">Klein</button>
-      <button type="button" data-value="m">Mittel</button>
-      <button type="button" data-value="l">Groß</button>
-    </div>
-    <div class="seg" id="shapeSeg" role="group" aria-label="Kachelform">
-      <button type="button" data-value="round"><i class="fa-regular fa-circle"></i> Rund</button>
-      <button type="button" data-value="rounded"><i class="fa-regular fa-square"></i> Abgerundet</button>
-      <button type="button" data-value="square"><i class="fa-solid fa-square"></i> Eckig</button>
-    </div>
-    <div class="seg" id="tilesSeg" role="group" aria-label="Kachelstil">
-      <button type="button" data-value="plain">Schlicht</button>
-      <button type="button" data-value="cards">Karten</button>
-    </div>
+        <section class="set-pane" data-pane="tiles" role="tabpanel" aria-label="Kacheln" hidden>
+          <h3>Verknüpfungen</h3>
+          <div class="opts">
+            <div class="opt">
+              <span><b>Größe</b></span>
+              <div class="seg" id="sizeSeg" role="group" aria-label="Kachelgröße">
+                <button type="button" data-value="s">Klein</button>
+                <button type="button" data-value="m">Mittel</button>
+                <button type="button" data-value="l">Groß</button>
+              </div>
+            </div>
+            <div class="opt">
+              <span><b>Form</b><small>Gilt auch für die Buttons der PCs</small></span>
+              <div class="seg" id="shapeSeg" role="group" aria-label="Kachelform">
+                <button type="button" data-value="round" title="Rund"><i class="fa-regular fa-circle"></i></button>
+                <button type="button" data-value="rounded" title="Abgerundet"><i class="fa-regular fa-square"></i></button>
+                <button type="button" data-value="square" title="Eckig"><i class="fa-solid fa-square"></i></button>
+              </div>
+            </div>
+            <div class="opt">
+              <span><b>Stil</b></span>
+              <div class="seg" id="tilesSeg" role="group" aria-label="Kachelstil">
+                <button type="button" data-value="plain">Schlicht</button>
+                <button type="button" data-value="cards">Karten</button>
+              </div>
+            </div>
+            <div class="opt">
+              <span><b>Links öffnen</b><small>Verknüpfungen, Google-Apps, Gmail, Bilder, Wetter</small></span>
+              <div class="seg" id="openSeg" role="group" aria-label="Links öffnen in">
+                <button type="button" data-value="same">Gleicher Tab</button>
+                <button type="button" data-value="new">Neuer Tab</button>
+              </div>
+            </div>
+          </div>
+        </section>
 
-    <h3>Öffnen</h3>
-    <p class="icon-hint">Shortcuts, Google-Apps, Gmail, Bilder und Wetter</p>
-    <div class="seg" id="openSeg" role="group" aria-label="Links öffnen in">
-      <button type="button" data-value="same"><i class="fa-regular fa-window-maximize"></i> Gleicher Tab</button>
-      <button type="button" data-value="new"><i class="fa-solid fa-arrow-up-right-from-square"></i> Neuer Tab</button>
-    </div>
-    <p class="icon-hint">YFRemote-Bildschirm (Strg+Klick öffnet immer einen neuen Tab)</p>
-    <div class="seg" id="screenSeg" role="group" aria-label="Bildschirm öffnen in">
-      <button type="button" data-value="same"><i class="fa-regular fa-window-maximize"></i> Gleicher Tab</button>
-      <button type="button" data-value="new"><i class="fa-solid fa-arrow-up-right-from-square"></i> Neuer Tab</button>
-    </div>
+        <section class="set-pane" data-pane="home" role="tabpanel" aria-label="Startseite" hidden>
+          <h3>Begrüßung</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Über der Uhr anzeigen</b><small>„Guten Morgen“, „Guten Abend“ … je nach Uhrzeit</small></span><input type="checkbox" class="switch" name="greeting"></label>
+            <div class="opt">
+              <span><b>Dein Name</b><small>Optional: „Guten Morgen, Name“</small></span>
+              <input name="name" maxlength="30" placeholder="Name" aria-label="Dein Name">
+            </div>
+          </div>
 
-    <h3>PCs (YFRemote)</h3>
-    <div class="checks">
-      <label class="check"><input type="checkbox" name="pcStats"> Auslastung (CPU, RAM, GPU, Akku)</label>
-      <label class="check"><input type="checkbox" name="pcMedia"> Was gerade läuft (Musik, Videos)</label>
-      <label class="check"><input type="checkbox" name="pcPreview"> Vorschaubild beim Überfahren von „Bildschirm“</label>
-      <label class="check"><input type="checkbox" name="pcFiles"> Dateien senden (Knopf „Datei“ und Ziehen)</label>
-      <label class="check"><input type="checkbox" name="pcClipboard"> Zwischenablage teilen (Menü „…“)</label>
-      <label class="check"><input type="checkbox" name="pcTimer"> Ausschalt-Timer im Menü „…“</label>
+          <h3>Suche und Tastatur</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Rechner</b><small>Ergebnis von z. B. 17*23 schon beim Tippen</small></span><input type="checkbox" class="switch" name="calc"></label>
+          <label class="opt"><span><b>Tastenkürzel</b><small>/ springt in die Suche, 1–9 öffnet die Verknüpfungen</small></span><input type="checkbox" class="switch" name="keys"></label>
+          </div>
+        </section>
+
+        <section class="set-pane" data-pane="pcs" role="tabpanel" aria-label="PCs" hidden>
+          <h3>Auf der PC-Karte anzeigen</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Auslastung</b><small>CPU, RAM, GPU und Akku, live</small></span><input type="checkbox" class="switch" name="pcStats"></label>
+          <label class="opt"><span><b>Was gerade läuft</b><small>Musik oder Video mit Steuerung und Lautstärke</small></span><input type="checkbox" class="switch" name="pcMedia"></label>
+          <label class="opt"><span><b>Vorschaubild</b><small>Beim Überfahren von „Bildschirm“; der PC zeigt an, dass jemand zusieht</small></span><input type="checkbox" class="switch" name="pcPreview"></label>
+          </div>
+
+          <h3>Funktionen</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Dateien senden</b><small>Knopf auf der Karte, oder Dateien auf die Karte ziehen</small></span><input type="checkbox" class="switch" name="pcFiles"></label>
+          <label class="opt"><span><b>Zwischenablage teilen</b><small>Im Menü „…“: senden und holen, Text oder Bild</small></span><input type="checkbox" class="switch" name="pcClipboard"></label>
+          <label class="opt"><span><b>Ausschalt-Timer</b><small>Im Menü „…“: Herunterfahren nach 15 Min. bis 2 Std.</small></span><input type="checkbox" class="switch" name="pcTimer"></label>
+            <div class="opt">
+              <span><b>Bildschirm öffnen</b><small>Strg+Klick öffnet immer einen neuen Tab</small></span>
+              <div class="seg" id="screenSeg" role="group" aria-label="Bildschirm öffnen in">
+                <button type="button" data-value="same">Gleicher Tab</button>
+                <button type="button" data-value="new">Neuer Tab</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="set-pane" data-pane="sync" role="tabpanel" aria-label="Sync" hidden>
+          <h3>Google-Konto</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Auf allen PCs gleich halten</b><small>Über die Chrome-Synchronisierung; dort muss „Erweiterungen“ an sein</small></span><input type="checkbox" class="switch" name="sync"></label>
+          </div>
+          <p class="set-note"><b>Wird synchronisiert:</b> Verknüpfungen, Gruppen, PCs, Wetter und Einstellungen.<br>
+            <b>Bleibt auf diesem PC:</b> Kopplungen (jeder PC koppelt selbst), Hintergrundbild und hochgeladene Icons.</p>
+        </section>
+      </div>
     </div>
-
-    <h3>Suche und Tastatur</h3>
-    <div class="checks">
-      <label class="check"><input type="checkbox" name="calc"> Rechner: Ergebnis schon beim Tippen</label>
-      <label class="check"><input type="checkbox" name="keys"> Tastenkürzel: / für die Suche, 1–9 für Verknüpfungen</label>
-    </div>
-
-    <h3>Begrüßung</h3>
-    <div class="row">
-      <label class="check"><input type="checkbox" name="greeting"> Über der Uhr anzeigen</label>
-      <input name="name" maxlength="30" placeholder="Dein Name (optional)" style="flex:1;min-width:160px">
-    </div>
-
-    <h3>Bewegung</h3>
-    <label class="check"><input type="checkbox" name="animations"> Animationen</label>
-
-    <h3>Synchronisieren</h3>
-    <label class="check"><input type="checkbox" name="sync"> Über das Google-Konto auf allen PCs gleich halten</label>
-    <p class="icon-hint">Verknüpfungen, Gruppen, PCs, Wetter und Einstellungen. Kopplungen, Hintergrundbild und
-      hochgeladene Icons bleiben auf diesem PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.</p>
 
     <div class="dlg-actions">
-      <button type="button" id="designReset" class="btn"><i class="fa-solid fa-rotate-left"></i> Standard</button>
+      <button type="button" id="designReset" class="btn" title="Design und Anzeige auf den Anfang zurücksetzen"><i class="fa-solid fa-rotate-left"></i> Standard</button>
       <span class="spacer"></span>
       <button type="button" class="btn" id="designCancel">Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>
