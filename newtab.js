@@ -637,29 +637,29 @@ function renderPcs() {
     });
     if (editing) buttons.push(addTile(() => openTileEditor('remote', pc.buttons, -1, pc)));
     const screenBtn = h('button', {
-      class: 'btn small', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen',
+      class: 'pc-act main', type: 'button', title: 'Bildschirm dieses PCs in YFRemote öffnen (Strg+Klick: neuer Tab)',
       onclick: e => openScreen(pc, e.ctrlKey || e.metaKey),
     }, fa('fa-solid fa-display'), 'Bildschirm');
     const card = h('div', { class: 'pc' },
       h('div', { class: 'pc-head' },
         h('span', { class: 'dot', 'data-pc': pc.id, title: 'Status wird geprüft…' }),
         h('h3', {}, pc.name),
-        h('span', { class: 'host' }, new URL(pc.url).host),
-        h('span', { class: 'spacer' }),
-        pc.token && !editing && state.design.pcFiles && h('button', {
-          class: 'btn small', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
-          onclick: () => pickFiles(pc),
-        }, fa('fa-solid fa-file-arrow-up'), 'Datei'),
-        pc.token && !editing && moreMenu(pc),
-        screenBtn,
-        editing && h('button', { class: 'btn small', type: 'button', onclick: () => openPcEditor(pcIndex) },
-          fa('fa-solid fa-pen'), 'PC bearbeiten'),
+        h('span', { class: 'host', title: pc.url }, new URL(pc.url).host),
+        h('div', { class: 'pc-stats', 'data-pc': pc.id }),
+        h('div', { class: 'pc-timer', 'data-pc': pc.id }),
+        h('div', { class: 'pc-actions' },
+          pc.token && !editing && state.design.pcFiles && h('button', {
+            class: 'pc-act', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
+            onclick: () => pickFiles(pc),
+          }, fa('fa-solid fa-file-arrow-up')),
+          pc.token && !editing && moreMenu(pc),
+          screenBtn,
+          editing && h('button', { class: 'pc-act main', type: 'button', onclick: () => openPcEditor(pcIndex) },
+            fa('fa-solid fa-pen'), 'Bearbeiten')),
       ),
-      h('div', { class: 'pc-timer', 'data-pc': pc.id }),
-      h('div', { class: 'pc-stats', 'data-pc': pc.id }),
       h('div', { class: 'pc-media', 'data-pc': pc.id }),
       h('div', { class: 'pc-uploads', 'data-pc': pc.id }),
-      !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – über ⚙ → „PC bearbeiten“ mit der PIN aus dem YFRemote-Tray koppeln.'),
+      !pc.token && h('p', { class: 'warn' }, 'Nicht gekoppelt – ⚙ → „Bearbeiten“, dann mit der PIN aus dem YFRemote-Tray koppeln.'),
       buttons.length ? h('div', { class: 'grid' }, buttons) : h('p', { class: 'empty' }, 'Noch keine Buttons – ⚙ drücken und „Hinzufügen“ wählen.'),
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
@@ -729,7 +729,7 @@ function moreMenu(pc) {
     timer && pcTimers.has(pc.id) && item('fa-ban', 'Timer abbrechen', () => setTimer(pc, 0)),
   );
   const btn = h('button', {
-    class: 'btn small', type: 'button', title: 'Mehr', 'aria-haspopup': 'true',
+    class: 'pc-act', type: 'button', title: 'Zwischenablage und Ausschalt-Timer', 'aria-haspopup': 'true',
     onclick: e => { e.stopPropagation(); closeMenus(menu); menu.classList.toggle('open'); },
   }, fa('fa-solid fa-ellipsis'));
   return h('span', { class: 'menu-wrap' }, btn, menu);
@@ -803,7 +803,7 @@ async function watchPc(pc) {
   try { await callBridge(pc.url, { op: 'watch', token: pc.token, stats: state.design.pcStats }); } catch { /* offline */ }
 }
 
-const TIMER_TEXT = { shutdown: 'Fährt herunter in', sleep: 'Energie sparen in', displayOff: 'Bildschirm aus in' };
+const TIMER_TEXT = { shutdown: 'Aus in', sleep: 'Ruhezustand in', displayOff: 'Bildschirm aus in' };
 
 // Geplanter Ausschalt-Timer mit Countdown; tick() zählt jede Sekunde weiter.
 function paintTimer(pc) {
@@ -815,8 +815,9 @@ function paintTimer(pc) {
   const text = `${TIMER_TEXT[t.action] ?? TIMER_TEXT.shutdown} ${left >= 3600 ? Math.floor(left / 3600) + ':' + mmss(left % 3600).padStart(5, '0') : mmss(left)}`;
   const label = el.querySelector('.txt');
   if (label) return void (label.textContent = text);
+  el.title = 'Ausschalt-Timer';
   el.replaceChildren(fa('fa-solid fa-power-off'), h('span', { class: 'txt' }, text),
-    h('button', { class: 'btn small', type: 'button', onclick: () => setTimer(pc, 0) }, 'Abbrechen'));
+    h('button', { type: 'button', title: 'Timer abbrechen', onclick: () => setTimer(pc, 0) }, fa('fa-solid fa-xmark')));
 }
 
 // Ein Wert mit Balken im Hintergrund; über 85 % rot.
@@ -833,8 +834,8 @@ function paintStats(el, st) {
   const gb = mb => (mb / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 });
   el.replaceChildren(...[
     st.cpuLoad != null && meter('fa-microchip', `CPU ${st.cpuLoad} %`, st.cpuLoad, `Prozessor${temp(st.cpuTemperature)}`),
-    st.memoryTotalMb > 0 && meter('fa-memory', `RAM ${gb(st.memoryUsedMb)}/${gb(st.memoryTotalMb)} GB`,
-      st.memoryUsedMb / st.memoryTotalMb * 100, 'Arbeitsspeicher'),
+    st.memoryTotalMb > 0 && meter('fa-memory', `RAM ${Math.round(st.memoryUsedMb / st.memoryTotalMb * 100)} %`,
+      st.memoryUsedMb / st.memoryTotalMb * 100, `Arbeitsspeicher: ${gb(st.memoryUsedMb)} von ${gb(st.memoryTotalMb)} GB`),
     st.gpuLoad != null && meter('fa-gauge-high', `GPU ${st.gpuLoad} %`, st.gpuLoad, `Grafikkarte${temp(st.gpuTemperature)}`),
     st.batteryLevel != null && meter(st.batteryCharging ? 'fa-plug-circle-bolt' : 'fa-battery-half',
       `Akku ${st.batteryLevel} %`, st.batteryLevel, st.batteryCharging ? 'Akku, lädt' : 'Akku'),
@@ -868,19 +869,19 @@ function paintMedia(pc) {
     }, fa('fa-solid ' + icon));
     el.replaceChildren(
       cover ? h('img', { class: 'cover', src: cover.url, alt: '' }) : h('span', { class: 'cover' }, fa('fa-solid fa-music')),
-      h('span', { class: 'track' },
-        h('b', { title: m.title }, m.title),
-        m.artist && h('small', { title: m.artist }, m.artist),
-        h('span', { class: 'bar' + (m.canSeek ? ' seek' : ''), onclick: e => seek(pc, e) })),
-      control('fa-backward-step', 'prev', 'Vorheriger Titel'),
-      control(m.playing ? 'fa-pause' : 'fa-play', 'playPause', m.playing ? 'Pause' : 'Abspielen'),
-      control('fa-forward-step', 'next', 'Nächster Titel'),
+      h('span', { class: 'track', title: [m.title, m.artist].filter(Boolean).join(' – ') },
+        h('b', {}, m.title), m.artist && h('small', {}, m.artist)),
+      h('span', { class: 'ctl' },
+        control('fa-backward-step', 'prev', 'Vorheriger Titel'),
+        control(m.playing ? 'fa-pause' : 'fa-play', 'playPause', m.playing ? 'Pause' : 'Abspielen'),
+        control('fa-forward-step', 'next', 'Nächster Titel')),
       m.volume != null && h('span', { class: 'volume' },
         control(m.muted ? 'fa-volume-xmark' : 'fa-volume-high', 'mute', m.muted ? 'Ton an' : 'Stumm'),
         h('input', {
           type: 'range', min: 0, max: 100, 'aria-label': 'Lautstärke', title: 'Lautstärke',
           oninput: e => setVolume(pc, Number(e.target.value)),
         })),
+      h('span', { class: 'bar' + (m.canSeek ? ' seek' : ''), onclick: e => seek(pc, e) }),
     );
   }
   // Regler nicht unter der Maus wegziehen, solange er bedient wird
@@ -1180,11 +1181,11 @@ async function checkHealth() {
       const slot = document.querySelector(`.pc-stats[data-pc="${pc.id}"]`);
       if (slot && pc.token) {
         slot.replaceChildren(h('button', {
-          class: 'btn small', type: 'button',
+          class: 'pc-act main', type: 'button', title: 'Chrome fragt einmal, ob YFStart diesen PC erreichen darf (für Status, Auslastung und Musik)',
           onclick: async () => {
             try { await ensureHostAccess(pc.url); checkHealth(); } catch (err) { toast(err.message, true); }
           },
-        }, fa('fa-solid fa-plug'), 'Verbindung erlauben (Status und Auslastung)'));
+        }, fa('fa-solid fa-plug'), 'Verbindung erlauben'));
       }
       return;
     }

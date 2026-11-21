@@ -237,7 +237,7 @@ body.editing .link-row:not(.add) { border-color: var(--border); }
 .w-fog { color: color-mix(in srgb, #94a3b8 60%, var(--text)); }
 
 .search { position: relative; max-width: 640px; margin: 26px auto 34px; }
-.search-icon { position: absolute; left: 18px; top: 16px; color: var(--muted); font-size: 17px; pointer-events: none; }
+.search-icon { position: absolute; z-index: 1; left: 18px; top: 16px; color: var(--muted); font-size: 17px; pointer-events: none; }
 #q {
   width: 100%; height: 52px; padding: 0 20px 0 50px; border-radius: 26px;
   border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); outline: none; font-size: 16px;
@@ -298,42 +298,89 @@ body.editing .tile:not(.add)::after {
 .tile.dragging { opacity: .3; }
 
 /* ---------- PCs ---------- */
-.pcs { display: grid; gap: 14px; margin-top: 30px; }
+/* Kompakte Karten, ab zwei PCs nebeneinander. Auslastung und Timer in der Kopfzeile,
+   Buttons als Pillen statt großer Kacheln. */
+.pcs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; margin-top: 28px; }
 .pc {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px 14px;
+  position: relative; container-type: inline-size; display: grid; gap: 8px; align-content: start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 10px 12px 12px;
   backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  --ic: 26px; --ic-font: 13px; --ic-radius: 8px;
 }
-.pc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.pc-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
-.pc-head .host { color: var(--muted); font-size: 12px; }
-.pc-head .spacer { flex: 1; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; position: relative; }
+html[data-shape="round"] .pc { --ic-radius: 50%; }
+html[data-shape="square"] .pc { --ic-radius: 4px; }
+.pc.all { grid-column: 1 / -1; }
+.pc.all .pc-head > i { color: var(--accent); }
+.pc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 30px; }
+.pc-head h3 { margin: 0; font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+.pc-head .host { color: var(--muted); font-size: 11.5px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; position: relative; }
 .dot.on { background: var(--ok); }
 .dot.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ok); animation: ping 2.4s ease-out infinite; }
 .dot.off { background: var(--danger); }
-.pc .grid { justify-content: flex-start; }
-.pc { position: relative; }
-.pc-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px 19px; }
-.pc-stats:empty { display: none; }
+.pc-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.pc-act {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; min-width: 30px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted);
+  font: inherit; font-size: 13px; cursor: pointer; transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+.pc-act:hover, .pc-act:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+.pc-act.main { border-color: var(--border); color: var(--text); margin-left: 4px; }
+.pc-act:active { transform: scale(.95); }
+
+/* Auslastung: kleine Chips mit Balken im Hintergrund, über 85 % rot */
+.pc-stats { display: flex; gap: 4px; }
+.pc-stats:empty, .pc-timer:empty { display: none; }
 @property --v { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
 .meter {
-  --bar: color-mix(in srgb, var(--accent) 22%, transparent);
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 8px; font-size: 12px;
-  color: var(--muted); border: 1px solid var(--border); font-variant-numeric: tabular-nums;
-  background: linear-gradient(90deg, var(--bar) var(--v), transparent var(--v));
+  --bar: color-mix(in srgb, var(--accent) 26%, transparent);
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 7px;
+  font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: linear-gradient(90deg, var(--bar) var(--v), color-mix(in srgb, var(--text) 6%, transparent) var(--v));
   transition: --v .8s var(--ease-out);
 }
-.meter.high { --bar: color-mix(in srgb, var(--danger) 25%, transparent); }
-.meter i { font-size: 11px; }
+.meter.high { --bar: color-mix(in srgb, var(--danger) 30%, transparent); }
+.meter i { font-size: 10px; opacity: .8; }
+
+/* Ausschalt-Timer als Chip */
+.pc-timer {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 2px 2px 8px; border-radius: 7px;
+  font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+.pc-timer > i { color: var(--danger); font-size: 10px; }
+.pc-timer button {
+  width: 18px; height: 18px; display: grid; place-items: center; border: 0; border-radius: 5px;
+  background: none; color: var(--muted); font-size: 10px; cursor: pointer;
+}
+.pc-timer button:hover { background: color-mix(in srgb, var(--danger) 30%, transparent); color: var(--text); }
+
+/* Buttons als Pillen */
+.pc .grid { justify-content: flex-start; gap: 6px; }
+.pc .tile, html[data-tiles="cards"] .pc .tile:not(.add) {
+  width: auto; max-width: 100%; flex-direction: row; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 999px;
+  border: 1px solid var(--border); background: color-mix(in srgb, var(--text) 3%, transparent);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+html[data-shape="rounded"] .pc .tile { border-radius: 11px; }
+html[data-shape="square"] .pc .tile { border-radius: 6px; }
+.pc .tile .ic { box-shadow: none; }
+.pc .tile .lbl { font-size: 13px; }
+.pc .tile:hover, .pc .tile:focus-visible { transform: translateY(-1px); background: var(--surface-2); }
+.pc .tile:hover .ic { transform: none; box-shadow: none; }
+.pc .tile:active { transform: scale(.97); }
+body.editing .pc .tile:not(.add)::after { position: static; font-size: 9px; margin-left: -2px; }
+
 .pc-preview {
-  position: absolute; z-index: 30; top: 46px; right: 14px; width: min(340px, calc(100% - 28px)); min-height: 60px;
+  position: absolute; z-index: 30; top: 44px; right: 12px; width: min(340px, calc(100% - 24px)); min-height: 60px;
   display: grid; place-items: center; overflow: hidden; border-radius: 12px;
   background: var(--surface-solid); border: 1px solid var(--border); box-shadow: var(--shadow-lift);
   animation: pop-in .3s var(--ease-spring);
 }
 .pc-preview img { display: block; width: 100%; }
 .pc-preview .msg { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
-.pc .warn { color: var(--danger); font-size: 13px; margin: 4px 0; }
+.pc .warn { color: var(--danger); font-size: 13px; margin: 0; }
+.pc .empty { margin: 0; font-size: 13px; text-align: left; }
 .empty { text-align: center; color: var(--muted); }
 
 /* ---------- Toast ---------- */
@@ -544,31 +591,37 @@ html[data-anim="off"] ::backdrop {
 .suggest li.calc b { font-size: 17px; font-weight: 600; }
 
 /* ---------- PC: Musik und Dateien ---------- */
+/* Eine Zeile: Cover, Titel · Interpret, Steuerung, Lautstärke; Zeitleiste am unteren Rand. */
 .pc-media {
-  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 6px; max-width: 600px;
-  border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent);
+  position: relative; display: flex; align-items: center; gap: 8px; padding: 5px 6px 7px 5px; overflow: hidden;
+  border-radius: 11px; background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 .pc-media:empty { display: none; }
 .pc-media .cover {
-  width: 42px; height: 42px; flex: none; border-radius: 8px; object-fit: cover;
-  display: grid; place-items: center; background: var(--surface-2); color: var(--muted);
+  width: 34px; height: 34px; flex: none; border-radius: 7px; object-fit: cover;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--muted); font-size: 13px;
 }
-.pc-media .track { flex: 1; min-width: 0; display: grid; gap: 1px; font-size: 13px; }
-.pc-media .track b, .pc-media .track small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-media .track b { font-weight: 600; }
-.pc-media .track small { color: var(--muted); }
-/* Zeitleiste: 3 px sichtbar, 13 px klickbar */
+.pc-media .track { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; font-size: 13px; white-space: nowrap; }
+.pc-media .track b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.pc-media .track small { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 4 auto; color: var(--muted); font-size: 12px; }
+.pc-media .ctl, .pc-media .volume { display: flex; align-items: center; }
+.pc-media .iconbtn.small { width: 28px; height: 28px; font-size: 12px; }
+.pc-media .iconbtn.busy { opacity: .5; }
+.pc-media .volume input { width: 72px; margin-right: 4px; accent-color: var(--accent); }
+/* Zeitleiste: 2 px sichtbar, 10 px klickbar */
 .pc-media .bar {
-  --p: 0%; height: 13px; margin: -3px 0 -5px;
-  background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--text) 12%, transparent) var(--p))
-    center / 100% 3px no-repeat;
+  --p: 0%; position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
+  background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--text) 10%, transparent) var(--p))
+    bottom / 100% 2px no-repeat;
 }
 .pc-media .bar.seek { cursor: pointer; }
-.pc-media .bar.seek:hover { background-size: 100% 5px; }
+.pc-media .bar.seek:hover { background-size: 100% 4px; }
 .pc-media .bar[hidden] { display: none; }
-.pc-media .iconbtn.busy { opacity: .5; }
+@container (max-width: 460px) {
+  .pc-media .volume input, .pc-head .host { display: none; }
+}
 .pc-uploads:empty { display: none; }
-.pc-uploads { display: grid; gap: 4px; margin: 0 0 8px 19px; max-width: 460px; }
+.pc-uploads { display: grid; gap: 4px; }
 .upload {
   --p: 0%; display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 8px; font-size: 12px;
   border: 1px solid var(--border); color: var(--muted);
@@ -586,18 +639,7 @@ html[data-anim="off"] ::backdrop {
 .checks { display: grid; gap: 2px; }
 .checks label.check { margin-bottom: 4px; }
 
-.pc-media .volume { display: flex; align-items: center; gap: 4px; }
-.pc-media .volume input { width: 84px; accent-color: var(--accent); }
 
-/* Ausschalt-Timer */
-.pc-timer:empty { display: none; }
-.pc-timer {
-  display: flex; align-items: center; gap: 10px; margin: 0 0 8px 19px; padding: 6px 8px 6px 12px; max-width: 600px;
-  border-radius: 12px; font-size: 13px; font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--text);
-}
-.pc-timer i { color: var(--danger); }
-.pc-timer .txt { flex: 1; }
 
 /* Menü „…“ */
 .menu-wrap { position: relative; }
@@ -619,8 +661,6 @@ html[data-anim="off"] ::backdrop {
 .menu-label { font-size: 12px; color: var(--muted); padding: 4px 10px 2px; }
 .menu-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 6px; }
 
-/* Alle PCs */
-.pc.all .pc-head > i { color: var(--accent); }
 
 /* Ablauf-Schritte im Editor */
 .steps { display: grid; gap: 6px; margin-bottom: 10px; }
