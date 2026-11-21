@@ -320,6 +320,15 @@ dialog input[type=color] { width: 40px; height: 28px; padding: 0; border: 1px so
 input[type=checkbox], input[type=range], input[type=radio] { accent-color: var(--accent); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
 .row label { margin: 0; }
+.bm-list {
+  max-height: 300px; overflow: auto; margin-bottom: 12px; padding: 4px;
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.bm-list .muted { margin: 8px; }
+dialog label.bm { margin: 0; padding: 6px 8px; border-radius: 7px; color: var(--text); cursor: pointer; }
+dialog label.bm:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+label.bm img, label.bm i { width: 16px; height: 16px; flex: none; text-align: center; }
+label.bm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dlg-body { display: flex; gap: 18px; }
 .preview-col { padding-top: 4px; }
 .preview-col .tile { pointer-events: none; border-color: transparent !important; }

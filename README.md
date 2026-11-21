@@ -16,6 +16,11 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
   Sperren, Ausschalten, Medien, Lautstärke, Tastenkombinationen und mehr per Klick
 - „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild
+- Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
+  Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons
+  bleiben auf dem jeweiligen PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.
+- Lesezeichen importieren (⚙ → **Lesezeichen**): einen Ordner wählen, Links abhaken, in den Hauptbereich,
+  eine Gruppe oder eine neue Gruppe mit dem Namen des Ordners übernehmen
 
 ## Installieren
 

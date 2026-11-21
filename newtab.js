@@ -147,23 +147,160 @@ function applyDesign(d) {
 try { applyDesign({ ...DEFAULT_DESIGN, ...JSON.parse(localStorage.getItem('yfstart.design') || '{}') }); } catch { /* egal */ }
 
 async function load() {
-  const d = await storage.get(['shortcuts', 'groups', 'pcs', 'weather', 'design']);
+  const d = await storage.get(['shortcuts', 'groups', 'pcs', 'weather', 'design', 'syncOn', 'syncAt']);
   state.groups = Array.isArray(d.groups) ? d.groups : [];
   if (d.weather) state.weather = d.weather;
   state.design = { ...DEFAULT_DESIGN, ...d.design };
-  applyDesign(state.design);
   state.shortcuts = Array.isArray(d.shortcuts) ? d.shortcuts : structuredClone(DEFAULT_SHORTCUTS);
   state.pcs = Array.isArray(d.pcs) ? d.pcs : [];
+  firstRun = !d.shortcuts;
+  syncOn = hasExt && !!d.syncOn;
+  syncAt = d.syncAt || 0;
+  if (syncOn) {
+    const remote = await readSync();
+    if (remote && remote.at > syncAt) await takeRemote(remote); // auf einem anderen PC geändert
+    else if (!remote || remote.at < syncAt) pushSync(); // hier geändert, aber noch nicht hochgeladen
+  }
+  applyDesign(state.design);
   // Ältere Einträge mit http://…:5443 reparieren (siehe normalizePcUrl).
   for (const pc of state.pcs) pc.url = normalizePcUrl(pc.url) || pc.url;
 }
 
-async function save() {
+async function writeLocal() {
   await storage.set({
-    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs, weather: state.weather, design: state.design,
+    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs, weather: state.weather, design: state.design, syncAt,
   });
   try { localStorage.setItem('yfstart.design', JSON.stringify(state.design)); } catch { /* Bild zu groß: dann ohne Sofort-Kopie */ }
 }
+
+async function save() {
+  syncAt = Math.max(Date.now(), syncAt + 1); // nie hinter einen Stand zurück, auch wenn die Uhr eines PCs vorgeht
+  await writeLocal();
+  pushSync();
+}
+
+// ---------- Sync über das Google-Konto ----------
+// chrome.storage.sync erlaubt höchstens 8 KB pro Eintrag und 100 KB insgesamt. Deshalb liegt alles als
+// JSON in Stücken (c0, c1, …) plus meta { at, n, len }. Der neuere Stand gewinnt (at = Zeit der Änderung).
+// Nur auf diesem PC bleiben: Kopplungs-Tokens (gelten pro Gerät), Hintergrundbild und hochgeladene Icons (zu groß).
+// Gleiche Extension-ID auf allen PCs dank "key" in manifest.json, sonst sieht jeder PC nur seine eigenen Daten.
+const SYNC_CHUNK = 2500; // Zeichen; ein Zeichen braucht im Speicher bis zu 3 Byte
+let syncOn = false, syncAt = 0, syncTimer = null, syncedJson = '', firstRun = false;
+const isDataUrl = v => typeof v === 'string' && v.startsWith('data:');
+
+function syncPayload() {
+  const tiles = list => (list || []).map(t => (isDataUrl(t.image) ? { ...t, image: null, localImage: true } : t));
+  return {
+    shortcuts: tiles(state.shortcuts),
+    groups: state.groups.map(g => ({ ...g, shortcuts: tiles(g.shortcuts) })),
+    pcs: state.pcs.map(({ token, ...pc }) => ({ ...pc, buttons: tiles(pc.buttons) })),
+    weather: state.weather,
+    design: { ...state.design, bgImage: null },
+  };
+}
+
+// Übernimmt einen Stand vom Google-Konto, behält aber, was nur auf diesem PC liegt.
+function applySynced(data) {
+  const allTiles = s => [...s.shortcuts, ...s.groups.flatMap(g => g.shortcuts), ...s.pcs.flatMap(pc => pc.buttons || [])];
+  const images = new Map(allTiles(state).filter(t => isDataUrl(t.image)).map(t => [t.id, t.image]));
+  for (const t of allTiles(data)) if (t.localImage && images.has(t.id)) t.image = images.get(t.id);
+  const before = new Map(state.pcs.map(pc => [pc.id, pc]));
+  state.shortcuts = data.shortcuts;
+  state.groups = data.groups;
+  state.pcs = data.pcs.map(pc => {
+    const old = before.get(pc.id);
+    return { ...pc, token: old && old.url === pc.url ? old.token : null };
+  });
+  if (data.weather) state.weather = data.weather;
+  state.design = { ...DEFAULT_DESIGN, ...data.design, bgImage: state.design.bgImage };
+}
+
+async function readSync() {
+  const all = await chrome.storage.sync.get(null);
+  const { meta } = all;
+  if (!meta?.n) return null;
+  let json = '';
+  for (let i = 0; i < meta.n; i++) json += all['c' + i] ?? '';
+  if (json.length !== meta.len) return null; // noch nicht alle Stücke angekommen
+  try {
+    const data = JSON.parse(json);
+    if (![data.shortcuts, data.groups, data.pcs].every(Array.isArray)) return null;
+    syncedJson = json;
+    return { at: meta.at, data };
+  } catch {
+    return null;
+  }
+}
+
+async function takeRemote(remote) {
+  applySynced(remote.data);
+  syncAt = remote.at;
+  await writeLocal();
+}
+
+function pushSync() {
+  if (!syncOn) return;
+  clearTimeout(syncTimer);
+  // Kurz warten: mehrere Änderungen hintereinander (Ziehen, Klicken) werden ein Schreibvorgang.
+  // Chrome erlaubt nur 120 pro Minute. Geht der Tab vorher zu, holt load() das beim nächsten Öffnen nach.
+  syncTimer = setTimeout(async () => {
+    if (!syncOn) return;
+    const json = JSON.stringify(syncPayload());
+    if (json === syncedJson) return;
+    const chunks = {};
+    let n = 0;
+    for (let i = 0; i < json.length; n++) {
+      let end = i + SYNC_CHUNK;
+      const c = json.charCodeAt(end - 1);
+      if (c >= 0xd800 && c <= 0xdbff) end--; // Emoji nicht zwischen zwei Stücken teilen
+      chunks['c' + n] = json.slice(i, end);
+      i = end;
+    }
+    try {
+      const { meta: old } = await chrome.storage.sync.get('meta');
+      await chrome.storage.sync.set({ ...chunks, meta: { at: syncAt, n, len: json.length } });
+      const extra = [];
+      for (let i = n; i < (old?.n ?? 0); i++) extra.push('c' + i);
+      if (extra.length) await chrome.storage.sync.remove(extra);
+      syncedJson = json;
+    } catch (err) {
+      toast(/quota/i.test(err.message)
+        ? 'Sync: zu viele Daten für das Google-Konto. Die Änderung gilt nur auf diesem PC.'
+        : 'Sync fehlgeschlagen: ' + err.message, true);
+    }
+  }, 800);
+}
+
+async function setSync(on) {
+  if (!hasExt) return toast('Sync geht nur in der Extension.', true);
+  syncOn = on;
+  await storage.set({ syncOn });
+  if (!on) return toast('Sync aus. Änderungen gelten ab jetzt nur auf diesem PC.');
+  let remote = await readSync();
+  if (remote && !confirm('Im Google-Konto gibt es schon einen Stand von einem anderen PC.\n\n'
+    + 'OK: diesen Stand übernehmen (ersetzt Verknüpfungen, Gruppen, PCs und Einstellungen hier).\n'
+    + 'Abbrechen: den Stand von diesem PC hochladen.')) remote = null;
+  if (remote) {
+    await takeRemote(remote);
+    smooth(() => { applyDesign(state.design); render(); });
+    renderWeather();
+    return toast('Stand vom Google-Konto übernommen.');
+  }
+  syncedJson = '';
+  await save();
+  toast('Sync an. Die anderen PCs bekommen diesen Stand, sobald dort Sync an ist.');
+}
+
+// Änderung von einem anderen PC (oder einem anderen Tab hier). Nicht mitten im Bearbeiten ersetzen:
+// dann gewinnt die nächste Änderung hier, wie bei gleichzeitigen Änderungen auf zwei PCs.
+if (hasExt) chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'sync' || !syncOn || editing || document.querySelector('dialog[open]')) return;
+  const remote = await readSync();
+  if (!remote || remote.at <= syncAt) return;
+  await takeRemote(remote);
+  smooth(() => { applyDesign(state.design); render(); });
+  renderWeather();
+});
 
 // ---------- Hilfen ----------
 function h(tag, attrs = {}, ...kids) {
@@ -178,13 +315,13 @@ function h(tag, attrs = {}, ...kids) {
 }
 
 let toastTimer;
-function toast(msg, isError = false) {
+function toast(msg, isError = false, ms = isError ? 5000 : 2500) {
   const t = $('#toast');
   t.replaceChildren(fa(isError ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check'), msg);
   t.classList.toggle('error', isError);
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 5000 : 2500);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
 function readableOn(hex) {
@@ -988,9 +1125,14 @@ $('#addShortcut').addEventListener('click', () => openTileEditor('link', state.s
 $('#addPc').addEventListener('click', () => openPcEditor(-1));
 
 $('#exportBtn').addEventListener('click', () => {
-  // Ohne Kopplungs-Tokens: wer die Datei hat, soll die PCs nicht steuern können.
+  // Normal ohne Kopplungs-Tokens: wer die Datei hat, soll die PCs nicht steuern können.
+  // Mit Tokens nur auf Nachfrage, z. B. zum Umziehen auf eine neue Installation der Extension.
+  const withTokens = state.pcs.some(pc => pc.token) && confirm('Kopplungen mit exportieren?\n\n'
+    + 'Nur für einen Umzug, damit du die PCs nicht neu koppeln musst. Wer die Datei hat, kann deine PCs steuern: '
+    + 'danach löschen.\n\nOK: mit Kopplungen. Abbrechen: ohne.');
   const data = {
-    shortcuts: state.shortcuts, groups: state.groups, pcs: state.pcs.map(({ token, ...pc }) => pc), weather: state.weather, design: state.design,
+    shortcuts: state.shortcuts, groups: state.groups, weather: state.weather, design: state.design,
+    pcs: withTokens ? state.pcs : state.pcs.map(({ token, ...pc }) => pc),
   };
   const a = h('a', {
     href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })),
@@ -998,7 +1140,8 @@ $('#exportBtn').addEventListener('click', () => {
   });
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Exportiert (ohne Kopplungen – PCs nach dem Import neu koppeln).');
+  toast(withTokens ? 'Exportiert, mit Kopplungen. Datei nach dem Import löschen.'
+    : 'Exportiert (ohne Kopplungen – PCs nach dem Import neu koppeln).');
 });
 $('#importBtn').addEventListener('click', () => $('#importFile').click());
 $('#importFile').addEventListener('change', async e => {
@@ -1011,7 +1154,9 @@ $('#importFile').addEventListener('change', async e => {
     if (!confirm('Aktuelle Shortcuts und PCs durch die Datei ersetzen?')) return;
     state.shortcuts = data.shortcuts;
     state.groups = Array.isArray(data.groups) ? data.groups : [];
-    state.pcs = data.pcs.map(pc => ({ ...pc, token: null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [] }));
+    state.pcs = data.pcs.map(pc => ({
+      ...pc, token: typeof pc.token === 'string' ? pc.token : null, buttons: Array.isArray(pc.buttons) ? pc.buttons : [],
+    }));
     if (data.weather) state.weather = data.weather;
     if (data.design) applyDesign(state.design = { ...DEFAULT_DESIGN, ...data.design });
     await save();
@@ -1034,6 +1179,8 @@ load().then(() => {
   renderWeather();
   setInterval(renderWeather, 15 * 60_000);
   checkForUpdate();
+  // Neue Installation (oder neue Extension-ID nach dem Update auf feste ID): zeigen, wie die Daten zurückkommen.
+  if (firstRun) toast('Neu hier? Eigene Daten über ⚙ → Importieren holen oder in ⚙ → Einstellungen Sync einschalten.', false, 9000);
 });
 
 // ---------- Wetter ----------
@@ -1181,6 +1328,7 @@ function syncDesignForm() {
     $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
   }
   df.animations.checked = d.animations;
+  df.sync.checked = syncOn;
 }
 
 function changeDesign(patch) {
@@ -1232,6 +1380,7 @@ $('#designCancel').addEventListener('click', () => designDlg.close());
 designDlg.addEventListener('close', () => {
   if (designDlg.returnValue === 'ok') {
     save();
+    if (df.sync.checked !== syncOn) setSync(df.sync.checked);
   } else {
     state.design = designBefore;
     applyDesign(state.design);
@@ -1283,4 +1432,80 @@ $('#groupDelete').addEventListener('click', () => {
   groupDlg.close();
   save();
   smooth(render);
+});
+
+// ---------- Lesezeichen-Import ----------
+// Zugriff auf die Lesezeichen fragt Chrome erst beim ersten Klick ab (optional_permissions).
+const bmDlg = $('#bookmarkDlg');
+const bf = $('#bookmarkForm');
+let bmFolders = []; // [{ title, depth, links: [{ title, url }] }]
+
+$('#bookmarkBtn').addEventListener('click', async () => {
+  if (!hasExt) return toast('Lesezeichen gehen nur in der Extension.', true);
+  if (!await chrome.permissions.request({ permissions: ['bookmarks'] })) {
+    return toast('Ohne Zugriff auf die Lesezeichen geht es nicht.', true);
+  }
+  const [root] = await chrome.bookmarks.getTree();
+  bmFolders = [];
+  (function walk(node, depth) {
+    for (const n of node.children ?? []) {
+      if (n.url) continue;
+      const links = (n.children ?? []).filter(c => /^https?:/i.test(c.url ?? '')).map(c => ({ title: c.title, url: c.url }));
+      bmFolders.push({ title: n.title || 'Ohne Namen', depth, links });
+      walk(n, depth + 1);
+    }
+  })(root, 0);
+  bf.folder.replaceChildren(...bmFolders.map((f, i) =>
+    h('option', { value: i }, ' '.repeat(f.depth) + `${f.title} (${f.links.length})`)));
+  bf.folder.value = Math.max(0, bmFolders.findIndex(f => f.links.length));
+  bf.target.replaceChildren(
+    h('option', { value: '' }, 'Hauptbereich'),
+    ...state.groups.map(g => h('option', { value: g.id }, `Gruppe „${g.name}“`)),
+    h('option', { value: 'new-left' }, 'Neue Gruppe links (Name des Ordners)'),
+    h('option', { value: 'new-right' }, 'Neue Gruppe rechts (Name des Ordners)'),
+  );
+  showBookmarkFolder();
+  bmDlg.showModal();
+});
+
+function showBookmarkFolder() {
+  const links = bmFolders[bf.folder.value]?.links ?? [];
+  $('#bmList').replaceChildren(...(links.length
+    ? links.map((l, i) => {
+      const img = h('img', { alt: '' });
+      loadFirstIcon(img, siteIconCandidates(l.url), () => img.replaceWith(fa('fa-solid fa-globe')));
+      return h('label', { class: 'check bm' },
+        h('input', { type: 'checkbox', checked: true, value: i }), img, h('span', { title: l.url }, l.title || l.url));
+    })
+    : [h('p', { class: 'muted' }, 'In diesem Ordner liegen keine Links.')]));
+}
+
+bf.folder.addEventListener('change', showBookmarkFolder);
+$('#bmAll').addEventListener('click', () => $('#bmList').querySelectorAll('input').forEach(c => (c.checked = true)));
+$('#bmNone').addEventListener('click', () => $('#bmList').querySelectorAll('input').forEach(c => (c.checked = false)));
+
+bf.addEventListener('submit', e => {
+  if (e.submitter?.value !== 'ok') return;
+  const folder = bmFolders[bf.folder.value];
+  const picked = [...$('#bmList').querySelectorAll('input:checked')].map(c => folder.links[c.value]);
+  if (!picked.length) { e.preventDefault(); return toast('Keine Lesezeichen ausgewählt.', true); }
+  let list;
+  if (bf.target.value.startsWith('new-')) {
+    const group = { id: uid(), name: folder.title.slice(0, 40), side: bf.target.value.slice(4), collapsed: false, shortcuts: [] };
+    state.groups.push(group);
+    list = group.shortcuts;
+  } else {
+    list = state.groups.find(g => g.id === bf.target.value)?.shortcuts ?? state.shortcuts;
+  }
+  const have = new Set(list.map(s => s.url));
+  const added = picked.filter(l => !have.has(l.url)).map(l => ({
+    id: uid(), label: (l.title || new URL(l.url).hostname.replace(/^www\./, '')).slice(0, 40),
+    url: l.url, color: '#ffffff', autoFg: true,
+  }));
+  list.push(...added);
+  save();
+  smooth(render);
+  const skipped = picked.length - added.length;
+  toast(`${added.length} Verknüpfung${added.length === 1 ? '' : 'en'} übernommen`
+    + (skipped ? `, ${skipped} gab es schon.` : '.'));
 });

@@ -45,6 +45,7 @@
     <button id="addPc" class="btn"><i class="fa-solid fa-desktop"></i> PC (YFRemote)</button>
     <button id="designBtn" class="btn"><i class="fa-solid fa-sliders"></i> Einstellungen</button>
     <button id="weatherBtn" class="btn"><i class="fa-solid fa-cloud-sun"></i> Wetter</button>
+    <button id="bookmarkBtn" class="btn"><i class="fa-solid fa-bookmark"></i> Lesezeichen</button>
     <button id="exportBtn" class="btn"><i class="fa-solid fa-file-export"></i> Exportieren</button>
     <button id="importBtn" class="btn"><i class="fa-solid fa-file-import"></i> Importieren</button>
     <input id="importFile" type="file" accept="application/json" hidden>
@@ -240,11 +241,35 @@
     <h3>Bewegung</h3>
     <label class="check"><input type="checkbox" name="animations"> Animationen</label>
 
+    <h3>Synchronisieren</h3>
+    <label class="check"><input type="checkbox" name="sync"> Über das Google-Konto auf allen PCs gleich halten</label>
+    <p class="icon-hint">Verknüpfungen, Gruppen, PCs, Wetter und Einstellungen. Kopplungen, Hintergrundbild und
+      hochgeladene Icons bleiben auf diesem PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.</p>
+
     <div class="dlg-actions">
       <button type="button" id="designReset" class="btn"><i class="fa-solid fa-rotate-left"></i> Standard</button>
       <span class="spacer"></span>
       <button type="button" class="btn" id="designCancel">Abbrechen</button>
       <button value="ok" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Lesezeichen als Verknüpfungen übernehmen -->
+<dialog id="bookmarkDlg">
+  <form method="dialog" id="bookmarkForm">
+    <h2>Lesezeichen importieren</h2>
+    <label>Ordner <select name="folder"></select></label>
+    <div class="row">
+      <button type="button" id="bmAll" class="btn small">Alle</button>
+      <button type="button" id="bmNone" class="btn small">Keine</button>
+    </div>
+    <div class="bm-list" id="bmList"></div>
+    <label>Übernehmen nach <select name="target"></select></label>
+    <div class="dlg-actions">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Abbrechen</button>
+      <button value="ok" class="btn primary">Übernehmen</button>
     </div>
   </form>
 </dialog>
