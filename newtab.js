@@ -1194,9 +1194,11 @@ async function callBridge(origin, payload, timeoutMs = 8000) {
       removeEventListener('message', onMessage);
       frame.remove();
       bridges.delete(origin);
-      reject(new Error(origin.startsWith('https:')
-        ? 'PC nicht erreichbar. Läuft YFRemote, und vertraut Chrome dem Zertifikat? Sonst http://…:5050 nehmen.'
-        : 'PC nicht erreichbar. Läuft YFRemote, und stimmt die Adresse (Port 5050)?'));
+      if (!origin.startsWith('https:')) return reject(new Error('PC nicht erreichbar. Läuft YFRemote, und stimmt die Adresse (Port 5050)?'));
+      // Meist das Zertifikat: YFRemote stellt es selbst aus. Seine CA liefert der PC auch über HTTP (/ca.crt).
+      const err = new Error('PC nicht erreichbar. Läuft YFRemote, und vertraut Chrome dem Zertifikat? Sonst http://…:5050 nehmen.');
+      err.caUrl = `http://${new URL(origin).hostname}:5050/ca.crt`;
+      reject(err);
     }, timeoutMs);
     function onMessage(e) {
       if (e.origin !== origin || !e.data?.yfstart || e.data.id !== id) return;
@@ -1645,6 +1647,8 @@ $('#pairBtn').addEventListener('click', async () => {
     }
   } catch (err) {
     setPairStatus(err.message);
+    if (err.caUrl) $('#pairStatus').append(' Für HTTPS: ', h('a', { href: err.caUrl, target: '_blank' }, 'Zertifikat von YFRemote laden'),
+      ', öffnen, „Zertifikat installieren“ → Aktueller Benutzer → „Vertrauenswürdige Stammzertifizierungsstellen“, dann Chrome neu starten.');
   }
 });
 
