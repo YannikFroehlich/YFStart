@@ -11,8 +11,12 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Links und den YFRemote-Bildschirm wahlweise im gleichen oder in einem neuen Tab öffnen
   (⚙ → **Einstellungen**, für einzelne Shortcuts auch im Shortcut selbst)
 - Designs (⚙ → **Einstellungen**): System, Hell, Dunkel, Mitternacht, Papier und die Verläufe Aurora,
-  Ozean, Abendrot und Wald; eigene Akzentfarbe, eigenes Hintergrundbild, Kachelgröße, -form und -stil,
+  Ozean, Abendrot und Wald; eigene Akzentfarbe, eigenes Hintergrundbild (abdunkeln, weichzeichnen), Schrift
+  (System, Modern, Serif, Mono), Kachelgröße, -form und -stil, Kacheln ohne Beschriftung, Kacheln pro Zeile,
   Animationen an/aus
+- Startseite anpassen (⚙ → **Einstellungen** → Startseite): Uhr aus, klein, mittel oder groß, mit Sekunden und
+  Datum; Inhalt oben oder weiter unten; Verknüpfungen oder PCs zuerst; Gmail, Bilder und Google-Apps ausblenden;
+  Suchmaschine (Google, DuckDuckGo, Bing, Ecosia) und Suchvorschläge an/aus
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
   Sperren, Ausschalten, Medien, Lautstärke, Tastenkombinationen und mehr per Klick
 - „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild

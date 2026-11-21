@@ -229,7 +229,21 @@
               </span>
             </div>
             <label class="opt"><span><b>Bild abdunkeln</b><small>Damit Text auf hellen Bildern lesbar bleibt</small></span><input type="range" name="bgDim" min="0" max="80" step="5"></label>
-          <label class="opt"><span><b>Animationen</b><small>Weiche Übergänge beim Öffnen, Umbauen und Wechseln</small></span><input type="checkbox" class="switch" name="animations"></label>
+            <label class="opt"><span><b>Bild weichzeichnen</b><small>Unscharfer Hintergrund lenkt weniger ab</small></span><input type="range" name="bgBlur" min="0" max="24" step="2"></label>
+          </div>
+
+          <h3>Schrift und Bewegung</h3>
+          <div class="opts">
+            <div class="opt">
+              <span><b>Schrift</b></span>
+              <div class="seg" id="fontSeg" role="group" aria-label="Schrift">
+                <button type="button" data-value="system">System</button>
+                <button type="button" data-value="modern" style="font-family:Bahnschrift,'Avenir Next',sans-serif">Modern</button>
+                <button type="button" data-value="serif" style="font-family:Georgia,serif">Serif</button>
+                <button type="button" data-value="mono" style="font-family:'Cascadia Code',Consolas,monospace">Mono</button>
+              </div>
+            </div>
+            <label class="opt"><span><b>Animationen</b><small>Weiche Übergänge beim Öffnen, Umbauen und Wechseln</small></span><input type="checkbox" class="switch" name="animations"></label>
           </div>
         </section>
 
@@ -259,6 +273,17 @@
                 <button type="button" data-value="cards">Karten</button>
               </div>
             </div>
+            <label class="opt"><span><b>Beschriftung</b><small>Aus: nur Icons, die Kacheln rücken enger zusammen</small></span><input type="checkbox" class="switch" name="labels"></label>
+            <div class="opt">
+              <span><b>Pro Zeile höchstens</b><small>Hauptbereich; „Auto“ füllt die Breite</small></span>
+              <div class="seg" id="colsSeg" role="group" aria-label="Kacheln pro Zeile">
+                <button type="button" data-value="auto">Auto</button>
+                <button type="button" data-value="4">4</button>
+                <button type="button" data-value="6">6</button>
+                <button type="button" data-value="8">8</button>
+                <button type="button" data-value="10">10</button>
+              </div>
+            </div>
             <div class="opt">
               <span><b>Links öffnen</b><small>Verknüpfungen, Google-Apps, Gmail, Bilder, Wetter</small></span>
               <div class="seg" id="openSeg" role="group" aria-label="Links öffnen in">
@@ -270,6 +295,40 @@
         </section>
 
         <section class="set-pane" data-pane="home" role="tabpanel" aria-label="Startseite" hidden>
+          <h3>Uhr</h3>
+          <div class="opts">
+            <div class="opt">
+              <span><b>Größe</b></span>
+              <div class="seg" id="clockSeg" role="group" aria-label="Uhr">
+                <button type="button" data-value="off">Aus</button>
+                <button type="button" data-value="s">Klein</button>
+                <button type="button" data-value="m">Mittel</button>
+                <button type="button" data-value="l">Groß</button>
+              </div>
+            </div>
+            <label class="opt"><span><b>Sekunden</b></span><input type="checkbox" class="switch" name="seconds"></label>
+            <label class="opt"><span><b>Datum</b><small>Wochentag und Datum unter der Uhr</small></span><input type="checkbox" class="switch" name="date"></label>
+          </div>
+
+          <h3>Anordnung</h3>
+          <div class="opts">
+            <div class="opt">
+              <span><b>Position</b><small>Uhr, Suche und Kacheln</small></span>
+              <div class="seg" id="valignSeg" role="group" aria-label="Position">
+                <button type="button" data-value="top">Oben</button>
+                <button type="button" data-value="center">Weiter unten</button>
+              </div>
+            </div>
+            <div class="opt">
+              <span><b>Zuerst</b><small>Was direkt unter der Suche steht</small></span>
+              <div class="seg" id="orderSeg" role="group" aria-label="Reihenfolge">
+                <button type="button" data-value="links">Verknüpfungen</button>
+                <button type="button" data-value="pcs">PCs</button>
+              </div>
+            </div>
+            <label class="opt"><span><b>Google-Links oben rechts</b><small>Gmail, Bilder und Google-Apps</small></span><input type="checkbox" class="switch" name="topLinks"></label>
+          </div>
+
           <h3>Begrüßung</h3>
           <div class="opts">
           <label class="opt"><span><b>Über der Uhr anzeigen</b><small>„Guten Morgen“, „Guten Abend“ … je nach Uhrzeit</small></span><input type="checkbox" class="switch" name="greeting"></label>
@@ -281,6 +340,16 @@
 
           <h3>Suche und Tastatur</h3>
           <div class="opts">
+            <div class="opt">
+              <span><b>Suchmaschine</b></span>
+              <div class="seg" id="engineSeg" role="group" aria-label="Suchmaschine">
+                <button type="button" data-value="google">Google</button>
+                <button type="button" data-value="duckduckgo">DuckDuckGo</button>
+                <button type="button" data-value="bing">Bing</button>
+                <button type="button" data-value="ecosia">Ecosia</button>
+              </div>
+            </div>
+          <label class="opt"><span><b>Vorschläge beim Tippen</b><small>Kommen von Google, auch bei anderer Suchmaschine</small></span><input type="checkbox" class="switch" name="suggest"></label>
           <label class="opt"><span><b>Rechner</b><small>Ergebnis von z. B. 17*23 schon beim Tippen</small></span><input type="checkbox" class="switch" name="calc"></label>
           <label class="opt"><span><b>Tastenkürzel</b><small>/ springt in die Suche, 1–9 öffnet die Verknüpfungen</small></span><input type="checkbox" class="switch" name="keys"></label>
           </div>

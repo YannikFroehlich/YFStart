@@ -125,13 +125,27 @@ const STEP_OPTIONS = [...Object.entries(ACTIONS).filter(([k]) => k !== 'sequence
 
 // ---------- Zustand ----------
 const DEFAULT_DESIGN = {
-  theme: 'auto', accent: null, bgImage: null, bgDim: 30, size: 'm', shape: 'rounded', tiles: 'plain', animations: true,
+  theme: 'auto', accent: null, bgImage: null, bgDim: 30, bgBlur: 0, font: 'system',
+  size: 'm', shape: 'rounded', tiles: 'plain', labels: true, cols: 'auto', animations: true,
   openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
   greeting: true, name: '', // „Guten Morgen, <name>“ über der Uhr
+  clock: 'm', seconds: false, date: true, // Uhr: off, s, m, l
+  valign: 'top', order: 'links', topLinks: true, // Anordnung: Inhalt oben/mittig, Verknüpfungen oder PCs zuerst
+  engine: 'google', suggest: true,
   // Ein- und ausblendbar: PC-Karten und Suche
   pcStats: true, pcMedia: true, pcPreview: true, pcFiles: true, pcClipboard: true, pcTimer: true, calc: true, keys: true,
 };
-const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'pcClipboard', 'pcTimer', 'calc', 'keys'];
+const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'pcClipboard', 'pcTimer', 'calc', 'keys']; // brauchen render()
+const SWITCHES = [...TOGGLES, 'animations', 'greeting', 'labels', 'seconds', 'date', 'topLinks', 'suggest'];
+const SEGS = [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn'],
+  ['#fontSeg', 'font'], ['#colsSeg', 'cols'], ['#clockSeg', 'clock'], ['#valignSeg', 'valign'], ['#orderSeg', 'order'], ['#engineSeg', 'engine']];
+const ENGINES = {
+  google: ['Google', 'https://www.google.com/search?q='],
+  duckduckgo: ['DuckDuckGo', 'https://duckduckgo.com/?q='],
+  bing: ['Bing', 'https://www.bing.com/search?q='],
+  ecosia: ['Ecosia', 'https://www.ecosia.org/search?q='],
+};
+const engine = () => ENGINES[state.design.engine] || ENGINES.google;
 const state = {
   shortcuts: [], groups: [], pcs: [], allButtons: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
 };
@@ -157,7 +171,13 @@ function applyDesign(d) {
   const root = document.documentElement;
   Object.assign(root.dataset, {
     theme: d.theme, size: d.size, shape: d.shape, tiles: d.tiles, anim: d.animations ? 'on' : 'off',
+    font: d.font, labels: d.labels, clock: d.clock, valign: d.valign, order: d.order, toplinks: d.topLinks,
   });
+  if (d.cols === 'auto') root.style.removeProperty('--cols');
+  else root.style.setProperty('--cols', d.cols);
+  root.style.setProperty('--bg-blur', (d.bgImage ? d.bgBlur : 0) + 'px');
+  $('#pcs')[d.order === 'pcs' ? 'after' : 'before']($('#shortcuts'));
+  $('#q').placeholder = `Mit ${ENGINES[d.engine]?.[0] || 'Google'} suchen oder URL eingeben`;
   if (d.accent) {
     root.style.setProperty('--accent', d.accent);
     root.style.setProperty('--on-accent', readableOn(d.accent));
@@ -402,8 +422,8 @@ function tick() {
   g.textContent = show ? greeting(now.getHours()) + (name.trim() ? ', ' + name.trim() : '') : '';
   for (const pc of state.pcs) if (pcTimers.has(pc.id)) paintTimer(pc);
   $('#clock').replaceChildren(
-    now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
-    h('small', {}, now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
+    now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: state.design.seconds ? '2-digit' : undefined }),
+    state.design.date && h('small', {}, now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
   );
 }
 
@@ -426,7 +446,7 @@ function go(text) {
   if (!s) return;
   location.href = looksLikeUrl(s)
     ? (/^https?:\/\//i.test(s) ? s : (/^(localhost|\d)/.test(s) ? 'http://' : 'https://') + s)
-    : 'https://www.google.com/search?q=' + encodeURIComponent(s);
+    : engine()[1] + encodeURIComponent(s);
 }
 
 function showSuggest(list) {
@@ -465,7 +485,7 @@ function markSelected() {
 async function loadSuggest() {
   const text = typed;
   suggestCtl?.abort();
-  if (!text.trim()) return showSuggest([]);
+  if (!text.trim() || !state.design.suggest) return showSuggest([]); // ohne Vorschläge bleibt die Rechner-Zeile
   suggestCtl = new AbortController();
   try {
     const lang = (navigator.language || 'de').split('-')[0];
@@ -1887,23 +1907,23 @@ function syncDesignForm() {
   df.accent.disabled = !d.accent;
   df.accent.value = d.accent || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1a73e8';
   df.bgDim.value = d.bgDim;
-  df.bgDim.disabled = !d.bgImage;
+  df.bgBlur.value = d.bgBlur;
+  df.bgDim.disabled = df.bgBlur.disabled = !d.bgImage;
   $('#bgClear').disabled = !d.bgImage;
-  for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn']]) {
+  for (const [seg, key] of SEGS) {
     $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
   }
-  df.animations.checked = d.animations;
-  for (const key of TOGGLES) df[key].checked = d[key];
-  df.greeting.checked = d.greeting;
+  for (const key of SWITCHES) df[key].checked = d[key];
   df.name.value = d.name;
   df.name.disabled = !d.greeting;
+  df.seconds.disabled = df.date.disabled = d.clock === 'off';
   df.sync.checked = syncOn;
 }
 
 function changeDesign(patch) {
   Object.assign(state.design, patch);
   // Design, Größe und Form blenden weich über; Regler (Abdunkeln, Farbe) sofort, sonst ruckelt das Ziehen.
-  const instant = 'bgDim' in patch || 'accent' in patch;
+  const instant = 'bgDim' in patch || 'bgBlur' in patch || 'accent' in patch;
   (instant ? f => f() : smooth)(() => {
     applyDesign(state.design);
     // Shortcuts übernehmen die neue Öffnen-Einstellung, PC-Karten die ein- und ausgeblendeten Teile
@@ -1918,7 +1938,7 @@ $('#themes').append(...THEMES.map(([id, name, preview, colors]) => h('button', {
 }, h('span', { class: 'sw', style: `background:${preview}` }, colors.map(c => h('span', { style: `background:${c}` }))),
   h('span', { class: 'nm' }, name))));
 
-for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn']]) {
+for (const [seg, key] of SEGS) {
   $(seg).addEventListener('click', e => {
     const b = e.target.closest('button[data-value]');
     if (b) changeDesign({ [key]: b.dataset.value });
@@ -1927,9 +1947,8 @@ for (const [seg, key] of [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tiles
 df.ownAccent.addEventListener('change', () => changeDesign({ accent: df.ownAccent.checked ? df.accent.value : null }));
 df.accent.addEventListener('input', () => changeDesign({ accent: df.accent.value }));
 df.bgDim.addEventListener('input', () => changeDesign({ bgDim: Number(df.bgDim.value) }));
-df.animations.addEventListener('change', () => changeDesign({ animations: df.animations.checked }));
-for (const key of TOGGLES) df[key].addEventListener('change', () => changeDesign({ [key]: df[key].checked }));
-df.greeting.addEventListener('change', () => changeDesign({ greeting: df.greeting.checked }));
+df.bgBlur.addEventListener('input', () => changeDesign({ bgBlur: Number(df.bgBlur.value) }));
+for (const key of SWITCHES) df[key].addEventListener('change', () => changeDesign({ [key]: df[key].checked }));
 df.name.addEventListener('input', () => { Object.assign(state.design, { name: df.name.value }); tick(); });
 $('#bgUpload').addEventListener('click', () => $('#bgFile').click());
 $('#bgFile').addEventListener('change', async e => {
