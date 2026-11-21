@@ -79,7 +79,8 @@ Datei löschen. Steht YFStart danach zweimal in `chrome://extensions`, den Eintr
 
 Auf dem PC muss YFRemote laufen. Auf der Seite ⚙ → **+ PC (YFRemote)**, Name und IP eintragen
 (bei reiner IP wird `http://` und Port 5050 ergänzt; für HTTPS z. B. `https://192.168.178.20:5443`, das braucht
-ein Zertifikat, dem Chrome vertraut), die PIN aus dem YFRemote-Tray eingeben und **Koppeln**. Beim ersten
+ein Zertifikat, dem Chrome vertraut; fehlt es, bietet der Dialog **Ohne HTTPS koppeln** an), die PIN aus dem
+YFRemote-Tray eingeben und **Koppeln**. Beim ersten
 Mal fragt Chrome, ob YFStart auf diese Adresse zugreifen darf.
 
 ## Für Änderungen

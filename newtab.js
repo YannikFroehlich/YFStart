@@ -1652,9 +1652,16 @@ $('#pairBtn').addEventListener('click', async () => {
       setPairStatus('Koppeln fehlgeschlagen: ' + (body?.error || text || `HTTP ${status}`));
     }
   } catch (err) {
-    setPairStatus(err.message);
-    if (err.caUrl) $('#pairStatus').append(' Für HTTPS: ', h('a', { href: err.caUrl, target: '_blank' }, 'Zertifikat von YFRemote laden'),
-      ', öffnen, „Zertifikat installieren“ → Aktueller Benutzer → „Vertrauenswürdige Stammzertifizierungsstellen“, dann Chrome neu starten.');
+    if (!err.caUrl) return setPairStatus(err.message);
+    // HTTPS klappt meist nur am Zertifikat. HTTP auf Port 5050 läuft bei YFRemote immer mit und braucht keins.
+    setPairStatus('Über HTTPS nicht erreichbar – meist vertraut Chrome dem Zertifikat von YFRemote noch nicht. ');
+    $('#pairStatus').append(
+      h('button', {
+        type: 'button', class: 'btn',
+        onclick: () => { pf.url.value = `http://${new URL(url).hostname}:5050`; $('#pairBtn').click(); },
+      }, 'Ohne HTTPS koppeln'),
+      ' Oder HTTPS einrichten: ', h('a', { href: err.caUrl, target: '_blank' }, 'Zertifikat von YFRemote laden'),
+      ', öffnen, „Zertifikat installieren“ → Aktueller Benutzer → „Alle Zertifikate in folgendem Speicher speichern“ → „Vertrauenswürdige Stammzertifizierungsstellen“, dann Chrome neu starten.');
   }
 });
 
