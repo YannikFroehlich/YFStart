@@ -85,6 +85,9 @@ html[data-shape="square"] { --ic-radius: calc(var(--ic) * .1); }
 /* ---------- Grundgerüst ---------- */
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
+/* Offener Dialog: Seite dahinter scrollt nicht mit (auch nicht, wenn eine Liste im Dialog am Ende ist). */
+html:has(dialog[open]) { overflow: hidden; }
+dialog, .set-panes, .bm-list, .icon-grid { overscroll-behavior: contain; }
 body {
   background: var(--bg-image), var(--bg);
   background-attachment: fixed;
