@@ -1683,6 +1683,8 @@ $('#importFile').addEventListener('change', async e => {
   if (!file) return;
   try {
     const data = JSON.parse(await file.text());
+    // Datei nur mit Gruppen (z. B. { "groups": [...] }): hinzufügen statt alles zu ersetzen.
+    if (Array.isArray(data.groups) && !data.shortcuts && !data.pcs) return void await addGroups(data.groups);
     if (!Array.isArray(data.shortcuts) || !Array.isArray(data.pcs)) throw new Error();
     if (!confirm('Aktuelle Shortcuts und PCs durch die Datei ersetzen?')) return;
     state.shortcuts = data.shortcuts;
@@ -1701,6 +1703,21 @@ $('#importFile').addEventListener('change', async e => {
     toast('Datei ist kein gültiges YFStart-Backup.', true);
   }
 });
+
+// Gruppen aus einer Datei anhängen. Nur http(s)-Links, neue IDs, damit nichts mit Vorhandenem kollidiert.
+async function addGroups(groups) {
+  const clean = groups.filter(g => g && typeof g.name === 'string' && Array.isArray(g.shortcuts)).map(g => ({
+    id: uid(), name: g.name.slice(0, 40), side: g.side === 'left' ? 'left' : 'right', collapsed: !!g.collapsed,
+    shortcuts: g.shortcuts.filter(s => /^https?:\/\//i.test(s?.url ?? '')).map(s => ({ ...s, id: uid() })),
+  }));
+  if (!clean.length) throw new Error();
+  const names = clean.map(g => `„${g.name}“ (${g.shortcuts.length} Links)`).join(', ');
+  if (!confirm(`Gruppe ${names} hinzufügen? Deine übrigen Verknüpfungen und PCs bleiben.`)) return;
+  state.groups.push(...clean);
+  await save();
+  smooth(render);
+  toast(`Gruppe ${clean.map(g => g.name).join(', ')} hinzugefügt.`);
+}
 
 // ---------- Start ----------
 document.querySelectorAll('#editbar .btn').forEach((b, n) => b.style.setProperty('--n', n));

@@ -36,6 +36,8 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
   Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons
   bleiben auf dem jeweiligen PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.
+- Gruppen aus einer Datei hinzufügen: ⚙ → **Importieren** mit einer Datei, die nur `{ "groups": [...] }` enthält,
+  hängt die Gruppen an, statt alles zu ersetzen
 - Lesezeichen importieren (⚙ → **Lesezeichen**): einen Ordner wählen, Links abhaken, in den Hauptbereich,
   eine Gruppe oder eine neue Gruppe mit dem Namen des Ordners übernehmen
 
