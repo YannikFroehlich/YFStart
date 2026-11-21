@@ -795,7 +795,11 @@ async function sendFiles(pc, files) {
     };
     addEventListener('message', onProgress);
     try {
-      const saved = await callBridge(pc.url, { op: 'upload', token: pc.token, file, key }, 3600_000);
+      // Eine Datei von der Festplatte darf der PC-Frame (eigener Prozess) nicht lesen, der Upload bricht
+      // sonst mit einem Netzwerkfehler ab. Eine Kopie im Speicher darf er.
+      // ponytail: ganze Datei im RAM (bis 2 GB); bei Bedarf in Stücken lesen und streamen.
+      const copy = new File([await file.arrayBuffer()], file.name, { type: file.type });
+      const saved = await callBridge(pc.url, { op: 'upload', token: pc.token, file: copy, key }, 3600_000);
       toast(`${saved} → ${pc.name}`);
     } catch (err) {
       toast(`${file.name}: ${err.message}`, true);
