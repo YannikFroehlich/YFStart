@@ -395,16 +395,19 @@ function normalizeLink(raw) {
   try { return new URL(/^[a-z][\w+.-]*:/i.test(s) ? s : 'https://' + s).href; } catch { return null; }
 }
 
-// "192.168.1.20" -> "http://192.168.1.20:5050" (YFRemote-Standardport, wenn keiner angegeben ist).
-// 5443 ist YFRemotes HTTPS-Port: dort spricht der Server kein HTTP, und HTTPS scheitert in Chrome am
-// selbst ausgestellten Zertifikat. HTTP läuft laut YFRemote immer zusätzlich auf 5050, also dorthin.
+// "192.168.1.20" -> "http://192.168.1.20:5050" (ohne http:// bzw. https:// gilt YFRemotes HTTP-Port).
+// Mit Schema gilt die Adresse wie eingegeben, sonst würde load() z. B. aus https://pc (= Port 443) beim
+// nächsten Öffnen einen anderen Port machen. Nur http://…:5443 geht nie (dort spricht YFRemote nur HTTPS)
+// und wird zu http://…:5050, wo HTTP laut YFRemote immer zusätzlich läuft. https braucht ein Zertifikat,
+// dem Chrome vertraut.
 function normalizePcUrl(raw) {
   const s = raw.trim();
   if (!s) return null;
   try {
-    const u = new URL(/^https?:\/\//i.test(s) ? s : 'http://' + s);
-    if (!u.port && !/^(https?:\/\/)?[^/]+:\d+/i.test(s)) u.port = '5050';
-    if (u.port === '5443') return `http://${u.hostname}:5050`;
+    const hasScheme = /^https?:\/\//i.test(s);
+    const u = new URL(hasScheme ? s : 'http://' + s);
+    if (!hasScheme && !/^[^/]+:\d+/.test(s)) u.port = '5050';
+    if (u.protocol === 'http:' && u.port === '5443') u.port = '5050';
     return u.origin;
   } catch { return null; }
 }
@@ -1191,7 +1194,9 @@ async function callBridge(origin, payload, timeoutMs = 8000) {
       removeEventListener('message', onMessage);
       frame.remove();
       bridges.delete(origin);
-      reject(new Error('PC nicht erreichbar. Läuft YFRemote, und stimmt die Adresse (Port 5050)?'));
+      reject(new Error(origin.startsWith('https:')
+        ? 'PC nicht erreichbar. Läuft YFRemote, und vertraut Chrome dem Zertifikat? Sonst http://…:5050 nehmen.'
+        : 'PC nicht erreichbar. Läuft YFRemote, und stimmt die Adresse (Port 5050)?'));
     }, timeoutMs);
     function onMessage(e) {
       if (e.origin !== origin || !e.data?.yfstart || e.data.id !== id) return;
