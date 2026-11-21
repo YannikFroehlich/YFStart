@@ -46,6 +46,12 @@ git pull
 und im Hinweis auf **Neu laden** klicken (oder in `chrome://extensions` bei YFStart auf ⟳).
 Shortcuts, PCs und Kopplungen bleiben dabei erhalten.
 
+**Einmalig beim Update von einer Version vor 1.11:** Ab 1.11 hat YFStart eine feste Extension-ID (`key` in
+`manifest.json`), damit der Sync zwischen PCs funktioniert. Chrome sieht danach eine neue Extension, die
+bisherigen Daten erscheinen nicht mehr. Deshalb vor dem `git pull` auf 1.11 erst auf 1.10 aktualisieren,
+dort ⚙ → **Exportieren** (bei der Frage nach Kopplungen **OK**), danach auf 1.11 ⚙ → **Importieren** und die
+Datei löschen. Steht YFStart danach zweimal in `chrome://extensions`, den Eintrag mit Fehler entfernen.
+
 ## PC hinzufügen
 
 Auf dem PC muss YFRemote laufen. Auf der Seite ⚙ → **+ PC (YFRemote)**, Name und IP eintragen
