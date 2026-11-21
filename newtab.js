@@ -667,6 +667,9 @@ function renderPcs() {
       h('div', { class: 'pc-head' },
         h('span', { class: 'dot', 'data-pc': pc.id, title: 'Status wird geprüft…' }),
         h('h3', { title: pc.name }, pc.name),
+        pc.url.startsWith('https:') && h('i', {
+          class: 'fa-solid fa-lock secure', role: 'img', title: 'Verschlüsselt (HTTPS)', 'aria-label': 'Verschlüsselt (HTTPS)',
+        }),
         h('span', { class: 'host', title: pc.url }, new URL(pc.url).host),
         h('div', { class: 'pc-actions' },
           pc.token && !editing && state.design.pcFiles && h('button', {
