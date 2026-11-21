@@ -578,3 +578,6 @@ html[data-anim="off"] ::backdrop {
   border-radius: inherit; font-weight: 600; color: var(--text); pointer-events: none;
   background: color-mix(in srgb, var(--surface-solid) 82%, var(--accent));
 }
+
+.checks { display: grid; gap: 2px; }
+.checks label.check { margin-bottom: 4px; }

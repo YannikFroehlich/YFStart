@@ -103,7 +103,10 @@ const DEFAULT_DESIGN = {
   theme: 'auto', accent: null, bgImage: null, bgDim: 30, size: 'm', shape: 'rounded', tiles: 'plain', animations: true,
   openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
   greeting: true, name: '', // „Guten Morgen, <name>“ über der Uhr
+  // Ein- und ausblendbar: PC-Karten und Suche
+  pcStats: true, pcMedia: true, pcPreview: true, pcFiles: true, calc: true, keys: true,
 };
+const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'calc', 'keys'];
 const state = {
   shortcuts: [], groups: [], pcs: [], weather: { enabled: false, name: '', lat: null, lon: null }, design: { ...DEFAULT_DESIGN },
 };
@@ -446,7 +449,7 @@ async function loadSuggest() {
 
 q.addEventListener('input', () => {
   typed = q.value;
-  calcValue = calc(typed);
+  calcValue = state.design.calc ? calc(typed) : null;
   showSuggest(typed.trim() ? suggestions : []); // Ergebnis sofort, Vorschläge kommen gleich
   clearTimeout(suggestTimer);
   suggestTimer = setTimeout(loadSuggest, 90);
@@ -612,7 +615,7 @@ function renderPcs() {
         h('h3', {}, pc.name),
         h('span', { class: 'host' }, new URL(pc.url).host),
         h('span', { class: 'spacer' }),
-        pc.token && !editing && h('button', {
+        pc.token && !editing && state.design.pcFiles && h('button', {
           class: 'btn small', type: 'button', title: 'Datei an den PC schicken (oder Dateien auf diese Karte ziehen)',
           onclick: () => pickFiles(pc),
         }, fa('fa-solid fa-file-arrow-up'), 'Datei'),
@@ -645,7 +648,10 @@ const pcCovers = new Map(); // PC-ID -> { id, url } Albumcover als Blob-URL
 // Eine offene Verbindung je PC, solange der Tab sichtbar ist (siehe yfremote-bridge.js).
 async function watchPc(pc) {
   if (!pc.token || document.hidden) return;
-  try { await callBridge(pc.url, { op: 'watch', token: pc.token }); } catch { /* offline */ }
+  const { pcStats: stats, pcMedia: media } = state.design;
+  const op = stats || media ? 'watch' : 'unwatch'; // beides aus: keine Verbindung
+  if (op === 'unwatch' && !bridges.has(pc.url)) return;
+  try { await callBridge(pc.url, { op, token: pc.token, stats, media }); } catch { /* offline */ }
 }
 
 // Ein Wert mit Balken im Hintergrund; über 85 % rot.
@@ -657,7 +663,7 @@ function meter(icon, label, percent, title) {
 
 function paintStats(el, st) {
   if (!el) return;
-  if (!st) return void el.replaceChildren();
+  if (!st || !state.design.pcStats) return void el.replaceChildren();
   const temp = t => (t != null ? `, ${t} °C` : '');
   const gb = mb => (mb / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 });
   el.replaceChildren(...[
@@ -678,7 +684,7 @@ function paintMedia(pc) {
   const el = document.querySelector(`.pc-media[data-pc="${pc.id}"]`);
   if (!el) return;
   const m = pcMedia.get(pc.id);
-  if (!m?.title) {
+  if (!m?.title || !state.design.pcMedia) {
     delete el.dataset.key;
     return void el.replaceChildren();
   }
@@ -761,7 +767,7 @@ function pickFiles(pc) {
 }
 
 function dropFiles(card, pc) {
-  if (!pc.token || editing) return;
+  if (!pc.token || editing || !state.design.pcFiles) return;
   card.dataset.drop = `Loslassen: an ${pc.name} schicken`;
   const hasFiles = e => e.dataTransfer?.types.includes('Files');
   card.addEventListener('dragover', e => {
@@ -823,7 +829,7 @@ function previewOnHover(btn, card, pc) {
   btn.addEventListener('mouseleave', stop);
   btn.addEventListener('click', stop);
   btn.addEventListener('mouseenter', () => {
-    if (!pc.token || editing) return;
+    if (!pc.token || editing || !state.design.pcPreview) return;
     timer = setTimeout(async function frame() {
       if (!pop) card.append(pop = h('div', { class: 'pc-preview' }, h('span', { class: 'msg' }, 'Bild wird geladen…')));
       const mine = pop;
@@ -1602,6 +1608,7 @@ function syncDesignForm() {
     $(seg).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === d[key]));
   }
   df.animations.checked = d.animations;
+  for (const key of TOGGLES) df[key].checked = d[key];
   df.greeting.checked = d.greeting;
   df.name.value = d.name;
   df.name.disabled = !d.greeting;
@@ -1614,7 +1621,8 @@ function changeDesign(patch) {
   const instant = 'bgDim' in patch || 'accent' in patch;
   (instant ? f => f() : smooth)(() => {
     applyDesign(state.design);
-    if ('openIn' in patch) render(); // Shortcuts übernehmen die neue Öffnen-Einstellung
+    // Shortcuts übernehmen die neue Öffnen-Einstellung, PC-Karten die ein- und ausgeblendeten Teile
+    if ('openIn' in patch || TOGGLES.some(k => k in patch)) render();
   });
   syncDesignForm();
   tick();
@@ -1635,6 +1643,7 @@ df.ownAccent.addEventListener('change', () => changeDesign({ accent: df.ownAccen
 df.accent.addEventListener('input', () => changeDesign({ accent: df.accent.value }));
 df.bgDim.addEventListener('input', () => changeDesign({ bgDim: Number(df.bgDim.value) }));
 df.animations.addEventListener('change', () => changeDesign({ animations: df.animations.checked }));
+for (const key of TOGGLES) df[key].addEventListener('change', () => changeDesign({ [key]: df[key].checked }));
 df.greeting.addEventListener('change', () => changeDesign({ greeting: df.greeting.checked }));
 df.name.addEventListener('input', () => { Object.assign(state.design, { name: df.name.value }); tick(); });
 $('#bgUpload').addEventListener('click', () => $('#bgFile').click());
@@ -1795,7 +1804,7 @@ bf.addEventListener('submit', e => {
 // /  springt in die Suche, Esc verlässt sie.
 // 1–9 öffnet Verknüpfung 1–9 im Hauptbereich, mit Umschalt im neuen Tab. (Strg+1–9 wechselt in Chrome die Tabs.)
 document.addEventListener('keydown', e => {
-  if (e.defaultPrevented || document.querySelector('dialog[open]')) return;
+  if (!state.design.keys || e.defaultPrevented || document.querySelector('dialog[open]')) return;
   if (e.target === q) {
     if (e.key === 'Escape' && suggestBox.hidden) q.blur();
     return;

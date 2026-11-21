@@ -26,6 +26,8 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Rechner in der Suche: `17*23`, `(2+3)^2`, `wurzel(2)` zeigen das Ergebnis schon beim Tippen, Klick kopiert es
 - Wettervorhersage für sechs Tage beim Überfahren des Wetters
 - Begrüßung nach Tageszeit über der Uhr, optional mit Namen (⚙ → **Einstellungen**)
+- Auslastung, Musikanzeige, Vorschaubild, Datei senden, Rechner und Tastenkürzel lassen sich unter
+  ⚙ → **Einstellungen** einzeln ein- und ausblenden
 - Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
   Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons
   bleiben auf dem jeweiligen PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.

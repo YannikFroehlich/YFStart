@@ -35,7 +35,7 @@ window.addEventListener('message', async e => {
       if (!res.ok) throw new Error(SCREEN_ERRORS[res.status] || `Kein Bild (HTTP ${res.status}).`);
       reply({ result: await res.arrayBuffer() });
     } else if (op === 'watch') {
-      await watch(e.data.token, id, e.source);
+      await watch(e.data.token, id, e.source, e.data.stats, e.data.media);
       reply({ result: true });
     } else if (op === 'unwatch') {
       liveSocket?.close();
@@ -63,14 +63,29 @@ const SCREEN_ERRORS = {
 // ("media", bei jeder Änderung) und nach dem Einschalten etwa jede Sekunde die Auslastung
 // ("systemStats"). Beides geht an die neue Tab-Seite. Die schließt die Verbindung, sobald sie nicht mehr
 // sichtbar ist; dann misst der PC nicht mehr.
-let liveSocket = null;
+// stats/media: was in den Einstellungen eingeblendet ist. Ohne Medienanzeige verbindet sich die Brücke
+// mit background=1, dann fragt YFRemote den Medienstatus gar nicht erst ab.
+let liveSocket = null, liveMedia = null;
 
-function watch(token, requestId, page) {
-  if (liveSocket && liveSocket.readyState <= WebSocket.OPEN) return Promise.resolve();
+function watch(token, requestId, page, stats, media) {
+  if (liveSocket && liveSocket.readyState <= WebSocket.OPEN && liveMedia === media) {
+    // Gleiche Verbindung, nur die Auslastung an- oder abschalten.
+    const ws = liveSocket;
+    const set = () => ws.send(JSON.stringify({ type: 'systemStats', enabled: stats }));
+    if (ws.readyState === WebSocket.OPEN) set();
+    else ws.addEventListener('open', set, { once: true });
+    return Promise.resolve();
+  }
+  liveSocket?.close();
+  liveMedia = media;
   return new Promise((resolve, reject) => {
-    const ws = liveSocket = new WebSocket(wsUrl(token));
+    const ws = liveSocket = new WebSocket(wsUrl(token, !media));
     const timer = setTimeout(() => { ws.close(); reject(new Error('Keine Antwort vom PC.')); }, 6000);
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'systemStats', enabled: true, requestId }));
+    ws.onopen = () => {
+      if (stats) return ws.send(JSON.stringify({ type: 'systemStats', enabled: true, requestId }));
+      clearTimeout(timer);
+      resolve();
+    };
     ws.onmessage = ev => {
       let m;
       try { m = JSON.parse(ev.data); } catch { return; }
@@ -117,17 +132,18 @@ function upload(token, file, key, page) {
   });
 }
 
-function wsUrl(token) {
+function wsUrl(token, background = false) {
   const u = new URL('/ws', location.href);
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
   u.searchParams.set('token', token);
+  if (background) u.searchParams.set('background', '1'); // ohne Medienstatus und Datei-Angebote
   return u;
 }
 
 // requestId kommt von der Extension-Seite: crypto.randomUUID gibt es auf http:// nicht.
 function sendAction(token, message, requestId) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl(token));
+    const ws = new WebSocket(wsUrl(token, true)); // nur ein Befehl, kein Medienstatus nötig
     let finished = false;
     const finish = err => {
       if (finished) return;
