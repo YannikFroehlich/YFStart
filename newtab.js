@@ -830,7 +830,17 @@ async function checkHealth() {
   await Promise.all(state.pcs.map(async pc => {
     const dot = document.querySelector(`.dot[data-pc="${pc.id}"]`);
     if (hasExt && !await chrome.permissions.contains({ origins: [hostPattern(pc.url)] })) {
-      if (dot) Object.assign(dot, { className: 'dot', title: 'Zugriff noch nicht erlaubt – einmal auf einen Button klicken' });
+      if (dot) Object.assign(dot, { className: 'dot', title: 'Zugriff auf den PC noch nicht erlaubt' });
+      // Chrome fragt nur nach einem Klick. Eigener Knopf, damit dafür keine Aktion am PC nötig ist.
+      const slot = document.querySelector(`.pc-stats[data-pc="${pc.id}"]`);
+      if (slot && pc.token) {
+        slot.replaceChildren(h('button', {
+          class: 'btn small', type: 'button',
+          onclick: async () => {
+            try { await ensureHostAccess(pc.url); checkHealth(); } catch (err) { toast(err.message, true); }
+          },
+        }, fa('fa-solid fa-plug'), 'Verbindung erlauben (Status und Auslastung)'));
+      }
       return;
     }
     let online = false;
