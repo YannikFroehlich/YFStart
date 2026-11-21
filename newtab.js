@@ -1239,7 +1239,10 @@ async function checkHealth() {
     if (online) watchPc(pc);
     if (!dot) return;
     dot.className = 'dot ' + (online ? 'on' : 'off');
-    dot.title = online ? 'Online' : 'Nicht erreichbar';
+    // Ein nicht vertrautes Zertifikat sieht für fetch genauso aus wie ein ausgeschalteter PC.
+    dot.title = online ? 'Online' : pc.url.startsWith('https:')
+      ? 'Nicht erreichbar – oder Chrome vertraut dem Zertifikat von YFRemote nicht (CA unter „Vertrauenswürdige Stammzertifizierungsstellen“ installieren)'
+      : 'Nicht erreichbar';
   }));
 }
 
