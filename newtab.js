@@ -127,16 +127,18 @@ const STEP_OPTIONS = [...Object.entries(ACTIONS).filter(([k]) => k !== 'sequence
 const DEFAULT_DESIGN = {
   theme: 'auto', accent: null, bgImage: null, bgDim: 30, bgBlur: 0, font: 'system',
   size: 'm', shape: 'rounded', tiles: 'plain', labels: true, cols: 'auto', animations: true,
-  openIn: 'same', screenIn: 'same', // Links bzw. YFRemote-Bildschirm im gleichen oder neuen Tab
+  openIn: 'same', // Links im gleichen oder neuen Tab
+  screenIn: 'same', screenFull: true, // YFRemote-Bildschirm: same, new (Tab) oder window; im Vollbild
   greeting: true, name: '', // „Guten Morgen, <name>“ über der Uhr
-  clock: 'm', seconds: false, date: true, // Uhr: off, s, m, l
+  clock: 'm', seconds: false, date: true, clock12: false, // Uhr: off, s, m, l
   valign: 'top', order: 'links', topLinks: true, // Anordnung: Inhalt oben/mittig, Verknüpfungen oder PCs zuerst
-  engine: 'google', suggest: true,
+  engine: 'google', suggest: true, searchNew: false,
   // Ein- und ausblendbar: PC-Karten und Suche
   pcStats: true, pcMedia: true, pcPreview: true, pcFiles: true, pcClipboard: true, pcTimer: true, calc: true, keys: true,
+  pcHideOffline: false,
 };
-const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'pcClipboard', 'pcTimer', 'calc', 'keys']; // brauchen render()
-const SWITCHES = [...TOGGLES, 'animations', 'greeting', 'labels', 'seconds', 'date', 'topLinks', 'suggest'];
+const TOGGLES = ['pcStats', 'pcMedia', 'pcPreview', 'pcFiles', 'pcClipboard', 'pcTimer', 'calc', 'keys', 'pcHideOffline']; // brauchen render()
+const SWITCHES = [...TOGGLES, 'animations', 'greeting', 'labels', 'seconds', 'date', 'clock12', 'topLinks', 'suggest', 'searchNew', 'screenFull'];
 const SEGS = [['#sizeSeg', 'size'], ['#shapeSeg', 'shape'], ['#tilesSeg', 'tiles'], ['#openSeg', 'openIn'], ['#screenSeg', 'screenIn'],
   ['#fontSeg', 'font'], ['#colsSeg', 'cols'], ['#clockSeg', 'clock'], ['#valignSeg', 'valign'], ['#orderSeg', 'order'], ['#engineSeg', 'engine']];
 const ENGINES = {
@@ -425,7 +427,10 @@ function tick() {
   g.textContent = show ? greeting(now.getHours()) + (name.trim() ? ', ' + name.trim() : '') : '';
   for (const pc of state.pcs) if (pcTimers.has(pc.id)) paintTimer(pc);
   $('#clock').replaceChildren(
-    now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: state.design.seconds ? '2-digit' : undefined }),
+    now.toLocaleTimeString('de-DE', {
+      hour: state.design.clock12 ? 'numeric' : '2-digit', minute: '2-digit', second: state.design.seconds ? '2-digit' : undefined,
+      hour12: state.design.clock12,
+    }),
     state.design.date && h('small', {}, now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
   );
 }
@@ -447,9 +452,13 @@ function looksLikeUrl(s) {
 function go(text) {
   const s = text.trim();
   if (!s) return;
-  location.href = looksLikeUrl(s)
+  const url = looksLikeUrl(s)
     ? (/^https?:\/\//i.test(s) ? s : (/^(localhost|\d)/.test(s) ? 'http://' : 'https://') + s)
     : engine()[1] + encodeURIComponent(s);
+  if (!state.design.searchNew) return void (location.href = url);
+  window.open(url, '_blank');
+  q.value = '';
+  q.dispatchEvent(new Event('input')); // Vorschläge und Rechner-Zeile schließen
 }
 
 function showSuggest(list) {
@@ -691,6 +700,7 @@ function renderPcs() {
       buttons.length > 0 && h('div', { class: 'grid' }, buttons), // ohne Buttons kein Hinweis; im Bearbeiten-Modus steht dort „Hinzufügen“
     );
     card.style.setProperty('--i', state.shortcuts.length + pcIndex * 3);
+    card.hidden = hideCard(pc);
     vtName(card, 'pc-' + pc.id);
     previewOnHover(screenBtn, card, pc);
     dropFiles(card, pc);
@@ -820,6 +830,7 @@ async function fetchClipboard(pc) {
 
 // ---------- Live-Anzeige: Auslastung, Musik, Vorschau ----------
 const pcStats = new Map(); // PC-ID -> letzte systemStats-Nachricht von YFRemote
+const pcOnline = new Map(); // PC-ID -> beim letzten checkHealth erreichbar
 const pcMedia = new Map(); // PC-ID -> letzte media-Nachricht (was gerade läuft)
 const pcCovers = new Map(); // PC-ID -> { id, url } Albumcover als Blob-URL
 const pcTimers = new Map(); // PC-ID -> { remaining, action, at } geplanter Ausschalt-Timer
@@ -1214,10 +1225,18 @@ async function callBridge(origin, payload, timeoutMs = 8000) {
   });
 }
 
+// „Offline-PCs ausblenden“: bis zur ersten Antwort ausgeblendet, damit nichts kurz aufblitzt.
+// Beim Bearbeiten sind alle Karten da.
+function hideCard(pc) {
+  return state.design.pcHideOffline && !editing && !pcOnline.get(pc.id);
+}
+
 async function checkHealth() {
   await Promise.all(state.pcs.map(async pc => {
     const dot = document.querySelector(`.dot[data-pc="${pc.id}"]`);
+    const card = dot?.closest('.pc');
     if (hasExt && !await chrome.permissions.contains({ origins: [hostPattern(pc.url)] })) {
+      if (card) card.hidden = false; // braucht den Knopf „Verbindung erlauben“
       if (dot) Object.assign(dot, { className: 'dot', title: 'Zugriff auf den PC noch nicht erlaubt' });
       // Chrome fragt nur nach einem Klick. Eigener Knopf, damit dafür keine Aktion am PC nötig ist.
       const slot = document.querySelector(`.pc-stats[data-pc="${pc.id}"]`);
@@ -1237,6 +1256,8 @@ async function checkHealth() {
       online = res.ok;
     } catch { /* offline */ }
     if (online) watchPc(pc);
+    pcOnline.set(pc.id, online);
+    if (card) card.hidden = hideCard(pc);
     if (!dot) return;
     dot.className = 'dot ' + (online ? 'on' : 'off');
     // Ein nicht vertrautes Zertifikat sieht für fetch genauso aus wie ein ausgeschalteter PC.
@@ -1258,8 +1279,8 @@ async function openScreen(pc, forceNewTab = false) {
   } catch (err) {
     return toast(err.message, true);
   }
-  const newTab = forceNewTab || state.design.screenIn === 'new';
-  chrome.runtime.sendMessage({ type: 'openScreen', url: pc.url + '/', token: pc.token, newTab });
+  const target = forceNewTab ? 'new' : state.design.screenIn;
+  chrome.runtime.sendMessage({ type: 'openScreen', url: pc.url + '/', token: pc.token, target, fullscreen: state.design.screenFull });
 }
 
 async function runButton(pc, b, el) {
@@ -1938,7 +1959,7 @@ function syncDesignForm() {
   for (const key of SWITCHES) df[key].checked = d[key];
   df.name.value = d.name;
   df.name.disabled = !d.greeting;
-  df.seconds.disabled = df.date.disabled = d.clock === 'off';
+  df.seconds.disabled = df.date.disabled = df.clock12.disabled = d.clock === 'off';
   df.sync.checked = syncOn;
 }
 

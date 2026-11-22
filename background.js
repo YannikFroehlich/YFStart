@@ -1,11 +1,11 @@
 'use strict';
 
 // "Bildschirm"-Knopf: öffnet den YFRemote-Client eines PCs im Tab der neuen Tab-Seite, schaltet dort
-// auf den Bildschirm-Tab und in Vollbild. Läuft hier im Hintergrund, weil die Tab-Seite beim
-// Weiternavigieren verschwindet.
+// auf den Bildschirm-Tab und (je nach Einstellung) in Vollbild. Läuft hier im Hintergrund, weil die
+// Tab-Seite beim Weiternavigieren verschwindet.
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === 'openScreen' && sender.tab?.id != null && /^https?:\/\//.test(msg.url)) {
-    openScreen(sender.tab, msg.url, msg.token, msg.newTab).catch(() => { /* PC offline: Chrome zeigt seine Fehlerseite */ });
+    openScreen(sender.tab, msg.url, msg.token, msg.target, msg.fullscreen !== false).catch(() => { /* PC offline: Chrome zeigt seine Fehlerseite */ });
   } else if (msg?.type === 'exitWindowFullscreen' && sender.tab) {
     exitWindowFullscreen(sender.tab.windowId);
   }
@@ -28,21 +28,24 @@ async function exitWindowFullscreen(windowId) {
 }
 
 // Zugriff auf den PC und fullscreen-flag.js hat newtab.js (ensureHostAccess) vorher eingerichtet.
-// newTab: in einem neuen Tab neben der Tab-Seite statt in ihr.
-async function openScreen(source, url, token, newTab) {
-  const tabId = newTab
-    ? (await chrome.tabs.create({ url: 'about:blank', index: source.index + 1, openerTabId: source.id })).id
-    : source.id;
+// target: 'same' (in der Tab-Seite), 'new' (neuer Tab daneben) oder 'window' (eigenes Fenster ohne
+// Adressleiste, maximiert).
+async function openScreen(source, url, token, target, fullscreen) {
+  const tabId = target === 'window'
+    ? (await chrome.windows.create({ url: 'about:blank', type: 'popup', state: 'maximized' })).tabs[0].id
+    : target === 'new'
+      ? (await chrome.tabs.create({ url: 'about:blank', index: source.index + 1, openerTabId: source.id })).id
+      : source.id;
   let loaded = tabLoaded(tabId, url);
-  const tab = await chrome.tabs.update(tabId, { url: url + '#yfstart-fullscreen' });
+  const tab = await chrome.tabs.update(tabId, { url: url + (fullscreen ? '#yfstart-fullscreen' : '') });
   // Höchstens zweimal: beim ersten Mal legt showScreenTab evtl. die Kopplung ab und lädt neu.
   for (let attempt = 0; attempt < 2; attempt++) {
     await loaded;
     loaded = tabLoaded(tabId, url);
-    const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: showScreenTab, args: [token] });
+    const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: showScreenTab, args: [token, fullscreen] });
     if (result !== 'reload') break;
   }
-  await enterWindowFullscreen(tab.windowId);
+  if (fullscreen) await enterWindowFullscreen(tab.windowId);
 }
 
 // Erst fertig, wenn die Seite des PCs geladen ist - nicht schon das about:blank eines neuen Tabs.
@@ -60,7 +63,7 @@ function tabLoaded(tabId, urlPrefix) {
 // Läuft im YFRemote-Client. Ohne eigene Kopplung bekommt er die von YFStart (gleiches Gerät), damit
 // nicht zweimal gekoppelt werden muss. Tab und Vollbild-Schalter erkennt das Script an ihren Icons,
 // nicht an der Beschriftung, die je nach Sprache wechselt.
-function showScreenTab(token) {
+function showScreenTab(token, fullscreen) {
   const TOKEN_KEY = 'yfremote.pairingToken';
   const SCREEN_TAB_ICON = 'M3 4h18a1 1 0 0 1 1 1v11';
   const FULLSCREEN_ICON = 'M5 5h6v2H7v4H5V5Z';
@@ -76,7 +79,7 @@ function showScreenTab(token) {
   const timer = setInterval(() => {
     if (!tabClicked) {
       const tab = withIcon('[role="tab"]', SCREEN_TAB_ICON);
-      if (tab) { tab.click(); tabClicked = true; }
+      if (tab) { tab.click(); tabClicked = true; if (!fullscreen) clearInterval(timer); }
     } else {
       const toggle = withIcon('[role="switch"]', FULLSCREEN_ICON);
       if (toggle) {

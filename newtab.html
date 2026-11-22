@@ -308,6 +308,7 @@
             </div>
             <label class="opt"><span><b>Sekunden</b></span><input type="checkbox" class="switch" name="seconds"></label>
             <label class="opt"><span><b>Datum</b><small>Wochentag und Datum unter der Uhr</small></span><input type="checkbox" class="switch" name="date"></label>
+            <label class="opt"><span><b>12-Stunden-Format</b><small>3:45 PM statt 15:45</small></span><input type="checkbox" class="switch" name="clock12"></label>
           </div>
 
           <h3>Anordnung</h3>
@@ -349,6 +350,7 @@
                 <button type="button" data-value="ecosia">Ecosia</button>
               </div>
             </div>
+          <label class="opt"><span><b>Suche im neuen Tab</b><small>Auch eingegebene Adressen; diese Seite bleibt offen</small></span><input type="checkbox" class="switch" name="searchNew"></label>
           <label class="opt"><span><b>Vorschläge beim Tippen</b><small>Kommen von Google, auch bei anderer Suchmaschine</small></span><input type="checkbox" class="switch" name="suggest"></label>
           <label class="opt"><span><b>Rechner</b><small>Ergebnis von z. B. 17*23 schon beim Tippen</small></span><input type="checkbox" class="switch" name="calc"></label>
           <label class="opt"><span><b>Tastenkürzel</b><small>/ springt in die Suche, 1–9 öffnet die Verknüpfungen</small></span><input type="checkbox" class="switch" name="keys"></label>
@@ -356,6 +358,11 @@
         </section>
 
         <section class="set-pane" data-pane="pcs" role="tabpanel" aria-label="PCs" hidden>
+          <h3>Liste</h3>
+          <div class="opts">
+          <label class="opt"><span><b>Offline-PCs ausblenden</b><small>Nur erreichbare PCs zeigen; beim Bearbeiten sind alle da</small></span><input type="checkbox" class="switch" name="pcHideOffline"></label>
+          </div>
+
           <h3>Auf der PC-Karte anzeigen</h3>
           <div class="opts">
           <label class="opt"><span><b>Auslastung</b><small>CPU, RAM, GPU und Akku, live</small></span><input type="checkbox" class="switch" name="pcStats"></label>
@@ -373,8 +380,10 @@
               <div class="seg" id="screenSeg" role="group" aria-label="Bildschirm öffnen in">
                 <button type="button" data-value="same">Gleicher Tab</button>
                 <button type="button" data-value="new">Neuer Tab</button>
+                <button type="button" data-value="window">Neues Fenster</button>
               </div>
             </div>
+          <label class="opt"><span><b>Bildschirm im Vollbild</b><small>Chrome-Fenster und Ansicht füllen den ganzen Monitor</small></span><input type="checkbox" class="switch" name="screenFull"></label>
           </div>
         </section>
 

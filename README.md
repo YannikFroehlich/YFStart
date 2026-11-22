@@ -8,18 +8,18 @@ Eigene Seite für „Neuer Tab“ in Chrome:
   ein Font-Awesome-Icon (passende werden vorgeschlagen, Marken mit ihrer Farbe), Emoji/Text oder ein Bild
 - Eigene Verknüpfungsgruppen links oder rechts neben der Mitte (⚙ → **Gruppe**), einklappbar;
   Verknüpfungen lassen sich im Editor unter „Bereich“ zwischen Hauptbereich und Gruppen verschieben
-- Links und den YFRemote-Bildschirm wahlweise im gleichen oder in einem neuen Tab öffnen
-  (⚙ → **Einstellungen**, für einzelne Shortcuts auch im Shortcut selbst)
+- Links wahlweise im gleichen oder in einem neuen Tab öffnen, den YFRemote-Bildschirm auch in einem eigenen
+  Fenster (⚙ → **Einstellungen**, für einzelne Shortcuts auch im Shortcut selbst)
 - Designs (⚙ → **Einstellungen**): System, Hell, Dunkel, Mitternacht, Papier und die Verläufe Aurora,
   Ozean, Abendrot und Wald; eigene Akzentfarbe, eigenes Hintergrundbild (abdunkeln, weichzeichnen), Schrift
   (System, Modern, Serif, Mono), Kachelgröße, -form und -stil, Kacheln ohne Beschriftung, Kacheln pro Zeile,
   Animationen an/aus
-- Startseite anpassen (⚙ → **Einstellungen** → Startseite): Uhr aus, klein, mittel oder groß, mit Sekunden und
-  Datum; Inhalt oben oder weiter unten; Verknüpfungen oder PCs zuerst; Gmail, Bilder und Google-Apps ausblenden;
-  Suchmaschine (Google, DuckDuckGo, Bing, Ecosia) und Suchvorschläge an/aus
+- Startseite anpassen (⚙ → **Einstellungen** → Startseite): Uhr aus, klein, mittel oder groß, mit Sekunden,
+  Datum und im 12-Stunden-Format; Inhalt oben oder weiter unten; Verknüpfungen oder PCs zuerst; Gmail, Bilder und
+  Google-Apps ausblenden; Suchmaschine (Google, DuckDuckGo, Bing, Ecosia), Suche im neuen Tab und Suchvorschläge an/aus
 - Schnellzugriff auf PCs mit [YFRemote](https://github.com/YannikFroehlich/YFRemote.Server):
   Sperren, Ausschalten, Medien, Lautstärke, Tastenkombinationen und mehr per Klick
-- „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild
+- „🖥 Bildschirm“ öffnet die Bildschirmansicht eines PCs direkt im Vollbild (in den Einstellungen abschaltbar)
 - Live-Auslastung pro PC (CPU, RAM, GPU, Akku), solange der Tab sichtbar ist; Vorschaubild des Bildschirms
   beim Überfahren von „Bildschirm“ (YFRemote zeigt am PC an, dass jemand zusieht)
 - Was gerade auf einem PC läuft (Titel, Interpret, Cover, Zeitleiste) mit Zurück, Pause und Weiter
@@ -36,7 +36,7 @@ Eigene Seite für „Neuer Tab“ in Chrome:
 - Wettervorhersage für sechs Tage beim Überfahren des Wetters
 - Begrüßung nach Tageszeit über der Uhr, optional mit Namen (⚙ → **Einstellungen**)
 - Auslastung, Musikanzeige, Vorschaubild, Datei senden, Zwischenablage, Timer, Rechner und Tastenkürzel lassen sich unter
-  ⚙ → **Einstellungen** einzeln ein- und ausblenden
+  ⚙ → **Einstellungen** einzeln ein- und ausblenden; nicht erreichbare PCs auf Wunsch auch
 - Sync über das Google-Konto (⚙ → **Einstellungen** → Synchronisieren): Verknüpfungen, Gruppen, PCs,
   Wetter und Einstellungen sind auf allen PCs gleich. Kopplungen, Hintergrundbild und hochgeladene Icons
   bleiben auf dem jeweiligen PC. Braucht in Chrome die Synchronisierung mit „Erweiterungen“.
